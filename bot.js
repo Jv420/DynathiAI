@@ -36,7 +36,17 @@ function isProtectedItem(item) {
     name.includes("sword") || name.includes("bow") || name.includes("crossbow") ||
     name.includes("helmet") || name.includes("chestplate") || name.includes("leggings") ||
     name.includes("boots") || name.includes("diamond") || name.includes("netherite") ||
-    name.includes("emerald");
+    name.includes("emerald") || name.includes("elytra") || name.includes("trident") ||
+    name.includes("shield") || name.includes("totem");
+}
+
+async function waitForWindow(timeoutMs = 6000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (bot.currentWindow) return bot.currentWindow;
+    await wait(200);
+  }
+  return null;
 }
 
 function createBot() {
@@ -177,17 +187,19 @@ const actions = {
 
     let chopped = 0;
     for (const pos of positions) {
-      if (!bot || !bot.entity) break;
+      if (!bot || !bot.entity || !workerMode && false) break;
       const block = bot.blockAt(pos);
-      if (!block) continue;
+      if (!block || !logNames.includes(block.name)) continue;
 
       try {
         bot.pathfinder.setGoal(new goals.GoalNear(block.position.x, block.position.y, block.position.z, 1));
-        await wait(1500);
-        await bot.lookAt(block.position.offset(0.5, 0.5, 0.5), true);
-        await bot.dig(block);
+        await wait(1700);
+        const freshBlock = bot.blockAt(block.position);
+        if (!freshBlock || !logNames.includes(freshBlock.name)) continue;
+        await bot.lookAt(freshBlock.position.offset(0.5, 0.5, 0.5), true);
+        await bot.dig(freshBlock);
         chopped++;
-        await wait(250);
+        await wait(300);
       } catch (err) {
         console.log("Manual chop error:", err.message);
       }
@@ -246,36 +258,56 @@ const actions = {
   },
 
   async autoSell() {
-    bot.chat("/sell");
-    await wait(2000);
-    const window = bot.currentWindow;
+    const sellItemsBefore = bot.inventory.items().filter(item => !isProtectedItem(item));
+    if (!sellItemsBefore.length) {
+      bot.chat("💰 Geen verkoopbare items in inventory.");
+      return false;
+    }
+
+    bot.chat(`/sell`);
+    const window = await waitForWindow(7000);
+
     if (!window) {
-      bot.chat("❌ Sell GUI niet geopend.");
+      bot.chat("❌ Sell GUI niet geopend binnen 7 seconden.");
       return false;
     }
 
-    const sellItems = bot.inventory.items().filter(item => !isProtectedItem(item));
-    if (!sellItems.length) {
-      bot.closeWindow(window);
-      bot.chat("💰 Geen verkoopbare items gevonden.");
-      return false;
-    }
+    bot.chat(`💰 AutoSell: ${sellItemsBefore.length} stacks gevonden. Items worden geplaatst...`);
 
-    let sellSlot = 0;
-    for (const item of sellItems) {
+    let moved = 0;
+    let targetSlot = 0;
+
+    for (const item of sellItemsBefore) {
+      if (!bot.currentWindow) break;
+      if (targetSlot >= Math.min(36, window.inventoryStart || 36)) break;
+
       try {
-        await bot.moveSlotItem(item.slot, sellSlot);
-        sellSlot++;
-        if (sellSlot >= 36) break;
+        const freshItem = bot.inventory.items().find(i => i.slot === item.slot && i.name === item.name);
+        if (!freshItem) continue;
+        await bot.moveSlotItem(freshItem.slot, targetSlot);
+        moved++;
+        targetSlot++;
+        await wait(150);
       } catch (err) {
         console.log("AutoSell move error:", err.message);
       }
     }
 
+    await wait(1000);
+
+    if (bot.currentWindow) {
+      bot.closeWindow(bot.currentWindow);
+    }
+
     await wait(1500);
-    bot.closeWindow(window);
-    bot.chat("💰 AutoSell voltooid.");
-    return true;
+
+    if (moved > 0) {
+      bot.chat(`💰 AutoSell voltooid: ${moved} stacks geplaatst en GUI gesloten.`);
+      return true;
+    }
+
+    bot.chat("❌ AutoSell: geen items kunnen plaatsen.");
+    return false;
   },
 
   async workerCycle() {
@@ -288,9 +320,9 @@ const actions = {
       const chopped = await actions.chopWood(20);
       if (!workerMode) return;
       if (chopped) {
-        await wait(1500);
+        await wait(2000);
         await actions.autoSell();
-        await wait(1500);
+        await wait(2000);
         bot.chat("/balance");
       } else {
         bot.chat("💼 Worker: geen hout gevonden/gehakt. Ik probeer straks opnieuw.");
