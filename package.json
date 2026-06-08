@@ -1,0 +1,19 @@
+{
+  "name": "dynathi-ai-bot",
+  "version": "2.2.0",
+  "description": "DynathiAI Mineflayer bot for DynathiSMP with Discord commands, mining, chopping, building and AutoSell.",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.7",
+    "minecraft-data": "^3.80.0",
+    "mineflayer": "^4.27.0",
+    "mineflayer-collectblock": "^1.4.1",
+    "mineflayer-pathfinder": "^2.4.5",
+    "vec3": "^0.1.10"
+  }
+}
