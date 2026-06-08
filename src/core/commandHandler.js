@@ -1,0 +1,115 @@
+async function handleCommand({ bot, mcData, args, modules, jobManager, brain, reply }) {
+  const command = (args[0] || "help").toLowerCase();
+  const sub = (args[1] || "").toLowerCase();
+
+  if (command === "help") {
+    reply("🤖 DynathiAI commands: mine, chop, fish, farm, chest, shulker, craft, build, goto, follow, stop, attack, guard, eat, status, sleep, brain, job, bal, sell, shop, ah");
+    return true;
+  }
+
+  if (command === "mine") {
+    return modules.mining.mineBlock(bot, mcData, args[1] || "stone", Number(args[2]) || 1);
+  }
+
+  if (command === "chop" || command === "wood") {
+    return modules.woodcutting.chopWood(bot, mcData, Number(args[1]) || 10);
+  }
+
+  if (command === "fish") {
+    return modules.fishing.fishOnce(bot);
+  }
+
+  if (command === "farm") {
+    return modules.farming.farm(bot, mcData, args[1] || "wheat", Number(args[2]) || 20);
+  }
+
+  if (command === "chest") {
+    const names = modules.storage.getChestNames();
+    if (sub === "store") return modules.storage.containerStore(bot, names, "Chest");
+    if (sub === "dump") return modules.storage.containerDump(bot, names, "Chest");
+    if (sub === "take") return modules.storage.containerTake(bot, names, "Chest", args[2], Number(args[3]) || 64);
+  }
+
+  if (command === "shulker") {
+    const names = modules.storage.getShulkerNames(mcData);
+    if (sub === "store") return modules.storage.containerStore(bot, names, "Shulker");
+    if (sub === "dump") return modules.storage.containerDump(bot, names, "Shulker");
+    if (sub === "take") return modules.storage.containerTake(bot, names, "Shulker", args[2], Number(args[3]) || 64);
+  }
+
+  if (command === "craft") {
+    return modules.crafting.craftQuick(bot, mcData, args[1], Number(args[2]) || 1);
+  }
+
+  if (command === "build") {
+    if (sub === "floor") return modules.building.buildFloor(bot, args[2] || "oak_planks", Number(args[3]) || 3, Number(args[4]) || 3);
+    if (sub === "wall") return modules.building.buildWall(bot, args[2] || "oak_planks", Number(args[3]) || 5, Number(args[4]) || 3);
+  }
+
+  if (command === "goto") {
+    return modules.navigation.goToCoords(bot, args[1], args[2], args[3]);
+  }
+
+  if (command === "follow") {
+    return modules.navigation.goToPlayer(bot, args[1] || process.env.OWNER_NAME || "", 2);
+  }
+
+  if (command === "stop") {
+    modules.navigation.stopNavigation(bot);
+    if (jobManager) jobManager.stop(false);
+    if (brain) brain.stop();
+    return true;
+  }
+
+  if (command === "attack") {
+    return modules.combat.attackNearestMob(bot, Number(args[1]) || 6);
+  }
+
+  if (command === "guard") {
+    reply("🛡️ Guard tick uitgevoerd.");
+    return modules.combat.guardTick(bot, Number(args[1]) || 6);
+  }
+
+  if (command === "eat") {
+    return modules.survival.eatFood(bot);
+  }
+
+  if (command === "status") {
+    reply(modules.survival.healthStatus(bot));
+    return true;
+  }
+
+  if (command === "sleep") {
+    if (sub === "wake") return modules.sleep.wakeUp(bot);
+    return modules.sleep.sleepInNearestBed(bot, sub === "force");
+  }
+
+  if (command === "brain") {
+    if (!brain) return reply("❌ Brain is niet geladen.");
+    if (sub === "start") return brain.start();
+    if (sub === "stop") return brain.stop();
+    reply(brain.status());
+    return true;
+  }
+
+  if (command === "job") {
+    if (!jobManager) return reply("❌ Job manager is niet geladen.");
+    if (sub === "stop") return jobManager.stop();
+    if (sub === "status") return reply(jobManager.status());
+    if (["wood", "mine", "fish", "farm"].includes(sub)) return jobManager.start(sub, args[2] || "none");
+    reply("Gebruik: job wood | job mine stone | job fish | job farm wheat | job stop | job status");
+    return false;
+  }
+
+  if (command === "bal" || command === "balance") return modules.economy.checkBalance(bot);
+  if (command === "sell") return modules.economy.sellInventory(bot);
+  if (command === "sellall") return modules.economy.quickSell(bot);
+  if (command === "shop") return modules.economy.openShop(bot);
+  if (command === "ah") return modules.economy.openAuctionHouse(bot);
+  if (command === "pay") return modules.economy.payPlayer(bot, args[1], args[2]);
+
+  reply("❌ Onbekend command. Gebruik: bot help");
+  return false;
+}
+
+module.exports = { handleCommand };
