@@ -40,7 +40,10 @@ function startDiscordController({ botRef, actions, log }) {
           "`!bot guard`\n" +
           "`!bot attack`\n" +
           "`!bot sell`\n" +
-          "`!bot spawn`\n"
+          "`!bot worker start`\n" +
+          "`!bot worker stop`\n" +
+          "`!bot worker status`\n" +
+          "`!bot spawn`"
         );
       }
 
@@ -57,6 +60,26 @@ function startDiscordController({ botRef, actions, log }) {
       if (command === "sell") { await actions.autoSell(); return message.reply("💰 AutoSell uitgevoerd"); }
       if (command === "eat") { await actions.eatFood(); return message.reply("🍗 Eten uitgevoerd"); }
       if (command === "attack") { actions.attackNearestMob(); return message.reply("⚔️ Attack uitgevoerd"); }
+
+      if (command === "worker") {
+        const subCommand = args[2]?.toLowerCase();
+
+        if (subCommand === "start") {
+          actions.startWorker();
+          return message.reply("💼 Worker mode gestart. Ik hak hout, verkoop items en herhaal dit automatisch.");
+        }
+
+        if (subCommand === "stop") {
+          actions.stopWorker();
+          return message.reply("🛑 Worker mode gestopt.");
+        }
+
+        if (subCommand === "status") {
+          return message.reply(actions.workerStatus());
+        }
+
+        return message.reply("Gebruik: `!bot worker start`, `!bot worker stop` of `!bot worker status`");
+      }
 
       return message.reply("Gebruik !bot help");
     } catch (err) {
