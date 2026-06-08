@@ -11,6 +11,10 @@ let bot;
 let mcData;
 let reconnecting = false;
 let guardMode = false;
+let workerMode = false;
+let workerBusy = false;
+let workerLoop = null;
+let workerCycles = 0;
 
 function sendWebhook(message) {
   if (!process.env.DISCORD_WEBHOOK_URL) return;
@@ -23,6 +27,10 @@ function sendWebhook(message) {
 function log(message) {
   console.log(message);
   sendWebhook(message);
+}
+
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 function createBot() {
@@ -51,7 +59,6 @@ function createBot() {
     log("✅ DynathiAI is verbonden met DynathiSMP.");
   });
 
-
   bot.on("chat", async (username, message) => {
     if (username === bot.username) return;
     if (!message.startsWith("bot ")) return;
@@ -66,7 +73,7 @@ function createBot() {
 
     try {
       if (command === "help") {
-        bot.chat("Commands: follow, stop, mine, chop, build, inv, eat, guard, attack, sell, spawn, home, sethome, bal");
+        bot.chat("Commands: follow, stop, mine, chop, build, inv, eat, guard, attack, sell, worker start/stop/status, spawn, home, sethome, bal");
       }
 
       if (command === "follow" || command === "come" || command === "kom") actions.followOwner();
@@ -79,6 +86,13 @@ function createBot() {
       if (command === "guard") bot.chat(actions.toggleGuard() ? "🛡️ Guard mode aan." : "🛡️ Guard mode uit.");
       if (command === "attack") actions.attackNearestMob();
       if (command === "sell") await actions.autoSell();
+      if (command === "worker") {
+        const subCommand = args[2]?.toLowerCase();
+        if (subCommand === "start") actions.startWorker();
+        else if (subCommand === "stop") actions.stopWorker();
+        else if (subCommand === "status") bot.chat(actions.workerStatus());
+        else bot.chat("Gebruik: bot worker start | bot worker stop | bot worker status");
+      }
       if (command === "spawn") bot.chat("/spawn");
       if (command === "home") bot.chat(`/home ${args[2] || ""}`.trim());
       if (command === "sethome") bot.chat(`/sethome ${args[2] || "bot"}`);
@@ -104,6 +118,7 @@ function createBot() {
 function reconnect() {
   if (reconnecting) return;
   reconnecting = true;
+  workerBusy = false;
 
   log("🔴 Disconnected. Reconnect over 10 seconden.");
 
@@ -124,6 +139,14 @@ const actions = {
 
   stopAll() {
     guardMode = false;
+    workerMode = false;
+    workerBusy = false;
+
+    if (workerLoop) {
+      clearInterval(workerLoop);
+      workerLoop = null;
+    }
+
     bot.pathfinder.setGoal(null);
     bot.clearControlStates();
     bot.chat("✅ Gestopt.");
@@ -146,9 +169,7 @@ const actions = {
       return;
     }
 
-    const blocks = positions
-      .map(pos => bot.blockAt(pos))
-      .filter(Boolean);
+    const blocks = positions.map(pos => bot.blockAt(pos)).filter(Boolean);
 
     const tool = bot.inventory.items().find(i =>
       i.name.includes("pickaxe") ||
@@ -187,9 +208,7 @@ const actions = {
       "cherry_log"
     ];
 
-    const ids = logNames
-      .map(name => mcData.blocksByName[name]?.id)
-      .filter(Boolean);
+    const ids = logNames.map(name => mcData.blocksByName[name]?.id).filter(Boolean);
 
     const positions = bot.findBlocks({
       matching: ids,
@@ -199,7 +218,7 @@ const actions = {
 
     if (!positions.length) {
       bot.chat("❌ Ik zie geen hout dichtbij.");
-      return;
+      return false;
     }
 
     const blocks = positions.map(pos => bot.blockAt(pos)).filter(Boolean);
@@ -216,8 +235,10 @@ const actions = {
     try {
       await bot.collectBlock.collect(blocks);
       bot.chat("✅ Klaar met hout hakken.");
+      return true;
     } catch (err) {
       bot.chat("❌ Hout hakken mislukt: " + err.message);
+      return false;
     }
   },
 
@@ -284,43 +305,36 @@ const actions = {
 
   async autoSell() {
     bot.chat("/sell");
-
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await wait(2000);
 
     const window = bot.currentWindow;
 
     if (!window) {
       bot.chat("❌ Sell GUI niet geopend.");
-      return;
+      return false;
     }
 
     const sellItems = bot.inventory.items().filter(item => {
-      // Bewaar tools en wapens
       if (item.name.includes("pickaxe")) return false;
       if (item.name.includes("axe")) return false;
       if (item.name.includes("shovel")) return false;
       if (item.name.includes("sword")) return false;
       if (item.name.includes("bow")) return false;
       if (item.name.includes("crossbow")) return false;
-
-      // Bewaar armor
       if (item.name.includes("helmet")) return false;
       if (item.name.includes("chestplate")) return false;
       if (item.name.includes("leggings")) return false;
       if (item.name.includes("boots")) return false;
-
-      // Bewaar waardevolle items
       if (item.name.includes("diamond")) return false;
       if (item.name.includes("netherite")) return false;
       if (item.name.includes("emerald")) return false;
-
       return true;
     });
 
     if (!sellItems.length) {
       bot.closeWindow(window);
       bot.chat("💰 Geen verkoopbare items gevonden.");
-      return;
+      return false;
     }
 
     let sellSlot = 0;
@@ -329,18 +343,85 @@ const actions = {
       try {
         await bot.moveSlotItem(item.slot, sellSlot);
         sellSlot++;
-
-        // De bovenste 4 rijen van jouw /sell GUI zijn de verkoopvakken.
         if (sellSlot >= 36) break;
       } catch (err) {
         console.log("AutoSell move error:", err.message);
       }
     }
 
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
+    await wait(1500);
     bot.closeWindow(window);
     bot.chat("💰 AutoSell voltooid.");
+    return true;
+  },
+
+  async workerCycle() {
+    if (!workerMode || workerBusy || !bot || !bot.entity) return;
+
+    workerBusy = true;
+    workerCycles++;
+
+    try {
+      bot.chat(`💼 Worker ronde ${workerCycles}: hout hakken gestart.`);
+      const chopped = await actions.chopWood(20);
+
+      if (!workerMode) return;
+
+      if (chopped) {
+        await wait(1500);
+        await actions.autoSell();
+        await wait(1500);
+        bot.chat("/balance");
+      } else {
+        bot.chat("💼 Worker: geen hout gevonden. Ik probeer straks opnieuw.");
+      }
+    } catch (err) {
+      log("❌ Worker error: " + err.stack);
+    } finally {
+      workerBusy = false;
+    }
+  },
+
+  startWorker() {
+    if (workerMode) {
+      bot.chat("💼 Worker mode staat al aan.");
+      return;
+    }
+
+    workerMode = true;
+    workerBusy = false;
+    bot.chat("💼 Worker mode gestart: ik hak hout, verkoop items en check balance.");
+    log("💼 Worker mode gestart.");
+
+    actions.workerCycle();
+
+    workerLoop = setInterval(() => {
+      actions.workerCycle();
+    }, 90000);
+  },
+
+  stopWorker() {
+    workerMode = false;
+    workerBusy = false;
+
+    if (workerLoop) {
+      clearInterval(workerLoop);
+      workerLoop = null;
+    }
+
+    if (bot && bot.entity) {
+      bot.pathfinder.setGoal(null);
+      bot.clearControlStates();
+      bot.chat("💼 Worker mode gestopt.");
+    }
+
+    log("💼 Worker mode gestopt.");
+  },
+
+  workerStatus() {
+    return workerMode
+      ? `💼 Worker mode: AAN | Busy: ${workerBusy ? "ja" : "nee"} | Rondes: ${workerCycles}`
+      : `💼 Worker mode: UIT | Rondes: ${workerCycles}`;
   },
 
   toggleGuard() {
