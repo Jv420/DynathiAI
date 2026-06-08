@@ -18,10 +18,7 @@ let workerCycles = 0;
 
 function sendWebhook(message) {
   if (!process.env.DISCORD_WEBHOOK_URL) return;
-
-  axios.post(process.env.DISCORD_WEBHOOK_URL, {
-    content: `🤖 **DynathiAI** | ${message}`
-  }).catch(() => {});
+  axios.post(process.env.DISCORD_WEBHOOK_URL, { content: `🤖 **DynathiAI** | ${message}` }).catch(() => {});
 }
 
 function log(message) {
@@ -31,6 +28,15 @@ function log(message) {
 
 function wait(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function isProtectedItem(item) {
+  const name = item.name;
+  return name.includes("pickaxe") || name.includes("axe") || name.includes("shovel") ||
+    name.includes("sword") || name.includes("bow") || name.includes("crossbow") ||
+    name.includes("helmet") || name.includes("chestplate") || name.includes("leggings") ||
+    name.includes("boots") || name.includes("diamond") || name.includes("netherite") ||
+    name.includes("emerald");
 }
 
 function createBot() {
@@ -47,14 +53,11 @@ function createBot() {
 
   bot.once("spawn", () => {
     mcData = require("minecraft-data")(bot.version);
-
     const movements = new Movements(bot, mcData);
     movements.canDig = true;
     movements.allow1by1towers = true;
     movements.canOpenDoors = true;
-
     bot.pathfinder.setMovements(movements);
-
     bot.chat("🤖 DynathiAI is online!");
     log("✅ DynathiAI is verbonden met DynathiSMP.");
   });
@@ -62,20 +65,13 @@ function createBot() {
   bot.on("chat", async (username, message) => {
     if (username === bot.username) return;
     if (!message.startsWith("bot ")) return;
-
-    if (process.env.OWNER_NAME && username !== process.env.OWNER_NAME) {
-      bot.chat("⛔ Alleen mijn eigenaar mag mij commands geven.");
-      return;
-    }
+    if (process.env.OWNER_NAME && username !== process.env.OWNER_NAME) return bot.chat("⛔ Alleen mijn eigenaar mag mij commands geven.");
 
     const args = message.split(" ");
     const command = args[1]?.toLowerCase();
 
     try {
-      if (command === "help") {
-        bot.chat("Commands: follow, stop, mine, chop, build, inv, eat, guard, attack, sell, worker start/stop/status, spawn, home, sethome, bal");
-      }
-
+      if (command === "help") bot.chat("Commands: follow, stop, mine, chop, build, inv, eat, guard, attack, sell, worker start/stop/status, spawn, home, sethome, bal");
       if (command === "follow" || command === "come" || command === "kom") actions.followOwner();
       if (command === "stop") actions.stopAll();
       if (command === "mine") await actions.mineBlock(args[2] || "dirt", Number(args[3] || 1));
@@ -105,9 +101,7 @@ function createBot() {
 
   bot.on("death", () => {
     log("💀 DynathiAI is dood gegaan.");
-    setTimeout(() => {
-      if (bot && bot.entity) bot.chat("/spawn");
-    }, 4000);
+    setTimeout(() => { if (bot && bot.entity) bot.chat("/spawn"); }, 4000);
   });
 
   bot.on("kicked", reason => log("❌ Gekickt: " + reason));
@@ -119,20 +113,14 @@ function reconnect() {
   if (reconnecting) return;
   reconnecting = true;
   workerBusy = false;
-
   log("🔴 Disconnected. Reconnect over 10 seconden.");
-
-  setTimeout(() => {
-    reconnecting = false;
-    createBot();
-  }, 10000);
+  setTimeout(() => { reconnecting = false; createBot(); }, 10000);
 }
 
 const actions = {
   followOwner() {
     const player = bot.players[process.env.OWNER_NAME]?.entity;
     if (!player) return bot.chat("Ik kan de eigenaar niet zien.");
-
     bot.chat("Ik volg je nu.");
     bot.pathfinder.setGoal(new goals.GoalFollow(player, 2), true);
   },
@@ -141,12 +129,8 @@ const actions = {
     guardMode = false;
     workerMode = false;
     workerBusy = false;
-
-    if (workerLoop) {
-      clearInterval(workerLoop);
-      workerLoop = null;
-    }
-
+    if (workerLoop) clearInterval(workerLoop);
+    workerLoop = null;
     bot.pathfinder.setGoal(null);
     bot.clearControlStates();
     bot.chat("✅ Gestopt.");
@@ -154,37 +138,17 @@ const actions = {
 
   async mineBlock(blockName, amount) {
     if (!mcData) return bot.chat("Bot is nog niet klaar.");
-
     const blockType = mcData.blocksByName[blockName];
     if (!blockType) return bot.chat(`Dat block ken ik niet: ${blockName}`);
 
-    const positions = bot.findBlocks({
-      matching: blockType.id,
-      maxDistance: 64,
-      count: amount
-    });
-
-    if (!positions.length) {
-      bot.chat(`❌ Ik zie geen ${blockName} dichtbij.`);
-      return;
-    }
+    const positions = bot.findBlocks({ matching: blockType.id, maxDistance: 64, count: amount });
+    if (!positions.length) return bot.chat(`❌ Ik zie geen ${blockName} dichtbij.`);
 
     const blocks = positions.map(pos => bot.blockAt(pos)).filter(Boolean);
-
-    const tool = bot.inventory.items().find(i =>
-      i.name.includes("pickaxe") ||
-      i.name.includes("shovel") ||
-      i.name.includes("axe")
-    );
-
-    if (tool) {
-      try {
-        await bot.equip(tool, "hand");
-      } catch {}
-    }
+    const tool = bot.inventory.items().find(i => i.name.includes("pickaxe") || i.name.includes("shovel") || i.name.includes("axe"));
+    if (tool) { try { await bot.equip(tool, "hand"); } catch {} }
 
     bot.chat(`⛏️ Ik ga ${blocks.length}x ${blockName} minen.`);
-
     try {
       await bot.collectBlock.collect(blocks);
       bot.chat("✅ Klaar met minen.");
@@ -197,63 +161,57 @@ const actions = {
   async chopWood(amount) {
     if (!mcData) return bot.chat("Bot is nog niet klaar.");
 
-    const logNames = [
-      "oak_log",
-      "birch_log",
-      "spruce_log",
-      "jungle_log",
-      "acacia_log",
-      "dark_oak_log",
-      "mangrove_log",
-      "cherry_log"
-    ];
-
+    const logNames = ["oak_log", "birch_log", "spruce_log", "jungle_log", "acacia_log", "dark_oak_log", "mangrove_log", "cherry_log"];
     const ids = logNames.map(name => mcData.blocksByName[name]?.id).filter(Boolean);
-
-    const positions = bot.findBlocks({
-      matching: ids,
-      maxDistance: 64,
-      count: amount
-    });
+    const positions = bot.findBlocks({ matching: ids, maxDistance: 64, count: amount });
 
     if (!positions.length) {
       bot.chat("❌ Ik zie geen hout dichtbij.");
       return false;
     }
 
-    const blocks = positions.map(pos => bot.blockAt(pos)).filter(Boolean);
-
     const axe = bot.inventory.items().find(i => i.name.includes("axe"));
-    if (axe) {
+    if (axe) { try { await bot.equip(axe, "hand"); } catch {} }
+
+    bot.chat(`🪓 Ik ga ${positions.length} logs handmatig hakken.`);
+
+    let chopped = 0;
+    for (const pos of positions) {
+      if (!bot || !bot.entity) break;
+      const block = bot.blockAt(pos);
+      if (!block) continue;
+
       try {
-        await bot.equip(axe, "hand");
-      } catch {}
+        bot.pathfinder.setGoal(new goals.GoalNear(block.position.x, block.position.y, block.position.z, 1));
+        await wait(1500);
+        await bot.lookAt(block.position.offset(0.5, 0.5, 0.5), true);
+        await bot.dig(block);
+        chopped++;
+        await wait(250);
+      } catch (err) {
+        console.log("Manual chop error:", err.message);
+      }
     }
 
-    bot.chat(`🪓 Ik ga ${blocks.length} logs hakken.`);
+    bot.pathfinder.setGoal(null);
 
-    try {
-      await bot.collectBlock.collect(blocks);
-      bot.chat("✅ Klaar met hout hakken.");
+    if (chopped > 0) {
+      bot.chat(`✅ Klaar met hout hakken: ${chopped} logs.`);
       return true;
-    } catch (err) {
-      bot.chat("❌ Hout hakken mislukt: " + err.message);
-      return false;
     }
+
+    bot.chat("❌ Geen logs kunnen hakken.");
+    return false;
   },
 
   async buildBlock(blockName) {
     const item = bot.inventory.items().find(i => i.name.includes(blockName));
     if (!item) return bot.chat(`Ik heb geen ${blockName}.`);
-
     try {
       await bot.equip(item, "hand");
-
       const pos = bot.entity.position.floored();
       const refBlock = bot.blockAt(pos.offset(1, -1, 0));
-
       if (!refBlock) return bot.chat("Geen goede plek om te bouwen.");
-
       await bot.placeBlock(refBlock, new Vec3(0, 1, 0));
       bot.chat(`✅ Ik heb ${blockName} geplaatst.`);
     } catch (err) {
@@ -264,23 +222,12 @@ const actions = {
   inventoryText() {
     const items = bot.inventory.items();
     if (!items.length) return "Inventory is leeg.";
-
     return items.map(i => `${i.name} x${i.count}`).join(", ").slice(0, 1900);
   },
 
   async eatFood() {
-    const food = bot.inventory.items().find(i =>
-      i.name.includes("bread") ||
-      i.name.includes("apple") ||
-      i.name.includes("beef") ||
-      i.name.includes("porkchop") ||
-      i.name.includes("chicken") ||
-      i.name.includes("carrot") ||
-      i.name.includes("potato")
-    );
-
+    const food = bot.inventory.items().find(i => i.name.includes("bread") || i.name.includes("apple") || i.name.includes("beef") || i.name.includes("porkchop") || i.name.includes("chicken") || i.name.includes("carrot") || i.name.includes("potato"));
     if (!food) return bot.chat("Ik heb geen eten.");
-
     try {
       await bot.equip(food, "hand");
       await bot.consume();
@@ -291,13 +238,8 @@ const actions = {
   },
 
   attackNearestMob() {
-    const mob = bot.nearestEntity(entity =>
-      entity.type === "mob" &&
-      entity.position.distanceTo(bot.entity.position) < 6
-    );
-
+    const mob = bot.nearestEntity(entity => entity.type === "mob" && entity.position.distanceTo(bot.entity.position) < 6);
     if (!mob) return bot.chat("Geen mob dichtbij.");
-
     bot.lookAt(mob.position.offset(0, 1, 0)).catch(() => {});
     bot.attack(mob);
     bot.chat("⚔️ Mob aangevallen.");
@@ -306,31 +248,13 @@ const actions = {
   async autoSell() {
     bot.chat("/sell");
     await wait(2000);
-
     const window = bot.currentWindow;
-
     if (!window) {
       bot.chat("❌ Sell GUI niet geopend.");
       return false;
     }
 
-    const sellItems = bot.inventory.items().filter(item => {
-      if (item.name.includes("pickaxe")) return false;
-      if (item.name.includes("axe")) return false;
-      if (item.name.includes("shovel")) return false;
-      if (item.name.includes("sword")) return false;
-      if (item.name.includes("bow")) return false;
-      if (item.name.includes("crossbow")) return false;
-      if (item.name.includes("helmet")) return false;
-      if (item.name.includes("chestplate")) return false;
-      if (item.name.includes("leggings")) return false;
-      if (item.name.includes("boots")) return false;
-      if (item.name.includes("diamond")) return false;
-      if (item.name.includes("netherite")) return false;
-      if (item.name.includes("emerald")) return false;
-      return true;
-    });
-
+    const sellItems = bot.inventory.items().filter(item => !isProtectedItem(item));
     if (!sellItems.length) {
       bot.closeWindow(window);
       bot.chat("💰 Geen verkoopbare items gevonden.");
@@ -338,7 +262,6 @@ const actions = {
     }
 
     let sellSlot = 0;
-
     for (const item of sellItems) {
       try {
         await bot.moveSlotItem(item.slot, sellSlot);
@@ -357,23 +280,20 @@ const actions = {
 
   async workerCycle() {
     if (!workerMode || workerBusy || !bot || !bot.entity) return;
-
     workerBusy = true;
     workerCycles++;
 
     try {
       bot.chat(`💼 Worker ronde ${workerCycles}: hout hakken gestart.`);
       const chopped = await actions.chopWood(20);
-
       if (!workerMode) return;
-
       if (chopped) {
         await wait(1500);
         await actions.autoSell();
         await wait(1500);
         bot.chat("/balance");
       } else {
-        bot.chat("💼 Worker: geen hout gevonden. Ik probeer straks opnieuw.");
+        bot.chat("💼 Worker: geen hout gevonden/gehakt. Ik probeer straks opnieuw.");
       }
     } catch (err) {
       log("❌ Worker error: " + err.stack);
@@ -383,45 +303,30 @@ const actions = {
   },
 
   startWorker() {
-    if (workerMode) {
-      bot.chat("💼 Worker mode staat al aan.");
-      return;
-    }
-
+    if (workerMode) return bot.chat("💼 Worker mode staat al aan.");
     workerMode = true;
     workerBusy = false;
     bot.chat("💼 Worker mode gestart: ik hak hout, verkoop items en check balance.");
     log("💼 Worker mode gestart.");
-
     actions.workerCycle();
-
-    workerLoop = setInterval(() => {
-      actions.workerCycle();
-    }, 90000);
+    workerLoop = setInterval(() => actions.workerCycle(), 90000);
   },
 
   stopWorker() {
     workerMode = false;
     workerBusy = false;
-
-    if (workerLoop) {
-      clearInterval(workerLoop);
-      workerLoop = null;
-    }
-
+    if (workerLoop) clearInterval(workerLoop);
+    workerLoop = null;
     if (bot && bot.entity) {
       bot.pathfinder.setGoal(null);
       bot.clearControlStates();
       bot.chat("💼 Worker mode gestopt.");
     }
-
     log("💼 Worker mode gestopt.");
   },
 
   workerStatus() {
-    return workerMode
-      ? `💼 Worker mode: AAN | Busy: ${workerBusy ? "ja" : "nee"} | Rondes: ${workerCycles}`
-      : `💼 Worker mode: UIT | Rondes: ${workerCycles}`;
+    return workerMode ? `💼 Worker mode: AAN | Busy: ${workerBusy ? "ja" : "nee"} | Rondes: ${workerCycles}` : `💼 Worker mode: UIT | Rondes: ${workerCycles}`;
   },
 
   toggleGuard() {
@@ -431,63 +336,25 @@ const actions = {
 };
 
 function startDiscordController() {
-  const discord = new Client({
-    intents: [
-      GatewayIntentBits.Guilds,
-      GatewayIntentBits.GuildMessages,
-      GatewayIntentBits.MessageContent
-    ]
-  });
-
-  discord.once("ready", () => {
-    log(`✅ Discord bot online als ${discord.user.tag}`);
-  });
+  const discord = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
+  discord.once("ready", () => log(`✅ Discord bot online als ${discord.user.tag}`));
 
   discord.on("messageCreate", async (message) => {
     if (message.author.bot) return;
     if (process.env.DISCORD_CHANNEL_ID && message.channel.id !== process.env.DISCORD_CHANNEL_ID) return;
     if (!message.content.startsWith("!bot")) return;
-
     if (!bot || !bot.entity) return message.reply("❌ Minecraft bot is nog niet online.");
 
     const args = message.content.split(" ");
     const command = args[1]?.toLowerCase();
 
     try {
-      if (command === "help") {
-        return message.reply(
-          "**DynathiAI commands**\n" +
-          "`!bot status`\n" +
-          "`!bot say <bericht>`\n" +
-          "`!bot follow`\n" +
-          "`!bot stop`\n" +
-          "`!bot mine <block> <aantal>`\n" +
-          "`!bot chop <aantal>`\n" +
-          "`!bot build <block>`\n" +
-          "`!bot inv`\n" +
-          "`!bot eat`\n" +
-          "`!bot guard`\n" +
-          "`!bot attack`\n" +
-          "`!bot sell`\n" +
-          "`!bot worker start`\n" +
-          "`!bot worker stop`\n" +
-          "`!bot worker status`\n" +
-          "`!bot spawn`"
-        );
-      }
-
+      if (command === "help") return message.reply("**DynathiAI commands**\n`!bot status`\n`!bot say <bericht>`\n`!bot follow`\n`!bot stop`\n`!bot mine <block> <aantal>`\n`!bot chop <aantal>`\n`!bot build <block>`\n`!bot inv`\n`!bot eat`\n`!bot guard`\n`!bot attack`\n`!bot sell`\n`!bot worker start`\n`!bot worker stop`\n`!bot worker status`\n`!bot spawn`");
       if (command === "status") {
         const p = bot.entity.position;
         return message.reply(`❤️ ${bot.health} | 🍗 ${bot.food} | X:${Math.floor(p.x)} Y:${Math.floor(p.y)} Z:${Math.floor(p.z)}`);
       }
-
-      if (command === "say") {
-        const text = args.slice(2).join(" ");
-        if (!text) return message.reply("Gebruik: `!bot say <bericht>`");
-        bot.chat(text);
-        return message.reply("✅ Bericht verzonden.");
-      }
-
+      if (command === "say") { const text = args.slice(2).join(" "); if (!text) return message.reply("Gebruik: `!bot say <bericht>`"); bot.chat(text); return message.reply("✅ Bericht verzonden."); }
       if (command === "follow") { actions.followOwner(); return message.reply("✅ Volgen gestart"); }
       if (command === "stop") { actions.stopAll(); return message.reply("🛑 Gestopt"); }
       if (command === "mine") { await actions.mineBlock(args[2] || "dirt", Number(args[3] || 1)); return message.reply("⛏️ Mining gestart"); }
@@ -496,46 +363,28 @@ function startDiscordController() {
       if (command === "sell") { await actions.autoSell(); return message.reply("💰 AutoSell uitgevoerd"); }
       if (command === "eat") { await actions.eatFood(); return message.reply("🍗 Eten uitgevoerd"); }
       if (command === "attack") { actions.attackNearestMob(); return message.reply("⚔️ Attack uitgevoerd"); }
-      if (command === "guard") { return message.reply(actions.toggleGuard() ? "🛡️ Guard mode aan." : "🛡️ Guard mode uit."); }
-      if (command === "inv" || command === "inventory") { return message.reply(actions.inventoryText()); }
+      if (command === "guard") return message.reply(actions.toggleGuard() ? "🛡️ Guard mode aan." : "🛡️ Guard mode uit.");
+      if (command === "inv" || command === "inventory") return message.reply(actions.inventoryText());
       if (command === "spawn") { bot.chat("/spawn"); return message.reply("✅ /spawn uitgevoerd"); }
-
       if (command === "worker") {
         const subCommand = args[2]?.toLowerCase();
-
-        if (subCommand === "start") {
-          actions.startWorker();
-          return message.reply("💼 Worker mode gestart. Ik hak hout, verkoop items en herhaal dit automatisch.");
-        }
-
-        if (subCommand === "stop") {
-          actions.stopWorker();
-          return message.reply("🛑 Worker mode gestopt.");
-        }
-
-        if (subCommand === "status") {
-          return message.reply(actions.workerStatus());
-        }
-
+        if (subCommand === "start") { actions.startWorker(); return message.reply("💼 Worker mode gestart."); }
+        if (subCommand === "stop") { actions.stopWorker(); return message.reply("🛑 Worker mode gestopt."); }
+        if (subCommand === "status") return message.reply(actions.workerStatus());
         return message.reply("Gebruik: `!bot worker start`, `!bot worker stop` of `!bot worker status`");
       }
-
       return message.reply("Gebruik !bot help");
     } catch (err) {
       return message.reply("❌ Fout: " + err.message);
     }
   });
 
-  if (process.env.DISCORD_TOKEN) {
-    discord.login(process.env.DISCORD_TOKEN);
-  } else {
-    log("⚠️ Geen DISCORD_TOKEN gevonden. Discord commands staan uit.");
-  }
+  if (process.env.DISCORD_TOKEN) discord.login(process.env.DISCORD_TOKEN);
+  else log("⚠️ Geen DISCORD_TOKEN gevonden. Discord commands staan uit.");
 }
 
 setInterval(() => {
   if (!bot || !bot.entity) return;
-
   bot.setControlState("jump", true);
   setTimeout(() => bot.setControlState("jump", false), 400);
 }, 60000);
@@ -547,14 +396,8 @@ setInterval(async () => {
 
 setInterval(() => {
   if (!guardMode || !bot || !bot.entity) return;
-
-  const mob = bot.nearestEntity(entity =>
-    entity.type === "mob" &&
-    entity.position.distanceTo(bot.entity.position) < 5
-  );
-
+  const mob = bot.nearestEntity(entity => entity.type === "mob" && entity.position.distanceTo(bot.entity.position) < 5);
   if (!mob) return;
-
   bot.lookAt(mob.position.offset(0, 1, 0)).catch(() => {});
   bot.attack(mob);
 }, 2000);
