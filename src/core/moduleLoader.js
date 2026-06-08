@@ -13,6 +13,7 @@ const aiBrain = require("../modules/aiBrain");
 const animals = require("../modules/animals");
 const economy = require("../modules/economy");
 const navigation = require("../modules/navigation");
+const autonomous = require("../modules/autonomous");
 
 function loadModules() {
   return {
@@ -30,7 +31,8 @@ function loadModules() {
     aiBrain,
     animals,
     economy,
-    navigation
+    navigation,
+    autonomous
   };
 }
 
