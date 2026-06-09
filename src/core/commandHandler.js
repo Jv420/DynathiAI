@@ -3,7 +3,7 @@ async function handleCommand({ bot, mcData, args, modules, jobManager, brain, au
   const sub = (args[1] || "").toLowerCase();
 
   if (command === "help") {
-    reply("🤖 DynathiAI commands: mine, chop, fish, farm, chest, shulker, craft, build, goto, waypoint, warehouse, explore, auto, follow, stop, attack, guard, eat, status, sleep, brain, job, balance, sell, shop, ah");
+    reply("🤖 DynathiAI commands: mine, chop, fish, farm, chest, shulker, craft, build, base, goto, waypoint, warehouse, explore, auto, follow, stop, attack, guard, eat, status, sleep, brain, job, balance, sell, shop, ah");
     return true;
   }
 
@@ -55,6 +55,15 @@ async function handleCommand({ bot, mcData, args, modules, jobManager, brain, au
   if (command === "build") {
     if (sub === "floor") return modules.building.buildFloor(bot, args[2] || "oak_planks", Number(args[3]) || 3, Number(args[4]) || 3);
     if (sub === "wall") return modules.building.buildWall(bot, args[2] || "oak_planks", Number(args[3]) || 5, Number(args[4]) || 3);
+  }
+
+  if (command === "base") {
+    if (!modules.baseBuilder) return reply("❌ BaseBuilder module is niet geladen.");
+    if (sub === "starter" || sub === "small") return modules.baseBuilder.buildStarterBase(bot, args[2] || "oak_planks");
+    if (sub === "hut" || sub === "house") return modules.baseBuilder.buildHut(bot, args[2] || "oak_planks", Number(args[3]) || 7, Number(args[4]) || 4);
+    if (sub === "platform") return modules.baseBuilder.buildPlatform(bot, args[2] || "oak_planks", Number(args[3]) || 9, Number(args[4]) || 9);
+    reply(modules.baseBuilder.baseHelp());
+    return false;
   }
 
   if (command === "waypoint" || command === "wp") {
