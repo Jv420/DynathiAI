@@ -1,10 +1,20 @@
-async function handleCommand({ bot, mcData, args, modules, jobManager, brain, autonomous, villageBuilder, reply }) {
+async function handleCommand({ bot, mcData, args, modules, jobManager, brain, autonomous, villageBuilder, smartBrain, reply }) {
   const command = (args[0] || "help").toLowerCase();
   const sub = (args[1] || "").toLowerCase();
 
   if (command === "help") {
-    reply("🤖 DynathiAI commands: mine, chop, fish, farm, chest, shulker, craft, build, base, village, goto, waypoint, warehouse, explore, auto, follow, stop, attack, guard, eat, status, sleep, brain, job, balance, sell, shop, ah");
+    reply("🤖 DynathiAI commands: mine, chop, fish, farm, chest, shulker, craft, build, base, village, smart, goto, waypoint, warehouse, explore, auto, follow, stop, attack, guard, eat, status, sleep, brain, job, balance, sell, shop, ah");
     return true;
+  }
+
+  if (command === "smart") {
+    if (!smartBrain) return reply("❌ SmartBrain controller is niet geladen.");
+    if (sub === "start") return smartBrain.start();
+    if (sub === "stop") return smartBrain.stop();
+    if (sub === "status" || !sub) return reply(smartBrain.status());
+    if (sub === "tick") return smartBrain.tick();
+    reply("Gebruik: smart start | smart stop | smart status | smart tick");
+    return false;
   }
 
   if (command === "mine") return modules.mining.mineBlock(bot, mcData, args[1] || "stone", Number(args[2]) || 1);
@@ -106,6 +116,7 @@ async function handleCommand({ bot, mcData, args, modules, jobManager, brain, au
     if (brain) brain.stop();
     if (autonomous) autonomous.stop();
     if (villageBuilder) villageBuilder.stop();
+    if (smartBrain) smartBrain.stop();
     return true;
   }
 
