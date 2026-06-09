@@ -24,7 +24,13 @@ async function handleCommand({ bot, mcData, args, modules, jobManager, brain, au
       if (action === "off" || action === "stop") return smartBrain.colonyOff();
       return reply(smartBrain.colonyStatus());
     }
-    reply("Gebruik: smart start | smart stop | smart status | smart tick | smart home <waypoint> | smart warehouse <waypoint> | smart farm <waypoint> | smart mine <waypoint> | smart lumber <waypoint> | smart colony on/off/status");
+    if (sub === "expansion" || sub === "expand") {
+      const action = (args[2] || "status").toLowerCase();
+      if (action === "on" || action === "start") return smartBrain.expansionOn();
+      if (action === "off" || action === "stop") return smartBrain.expansionOff();
+      return reply(smartBrain.colonyStatus());
+    }
+    reply("Gebruik: smart start | smart stop | smart status | smart tick | smart home <waypoint> | smart warehouse <waypoint> | smart farm <waypoint> | smart mine <waypoint> | smart lumber <waypoint> | smart colony on/off/status | smart expansion on/off/status");
     return false;
   }
 
