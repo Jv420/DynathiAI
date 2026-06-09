@@ -62,6 +62,9 @@ async function handleCommand({ bot, mcData, args, modules, jobManager, brain, au
     if (sub === "starter" || sub === "small") return modules.baseBuilder.buildStarterBase(bot, args[2] || "oak_planks");
     if (sub === "hut" || sub === "house") return modules.baseBuilder.buildHut(bot, args[2] || "oak_planks", Number(args[3]) || 7, Number(args[4]) || 4);
     if (sub === "platform") return modules.baseBuilder.buildPlatform(bot, args[2] || "oak_planks", Number(args[3]) || 9, Number(args[4]) || 9);
+    if (sub === "farm" || sub === "farmplot") return modules.baseBuilder.buildFarmPlot(bot, args[2] || "oak_planks", Number(args[3]) || 9);
+    if (sub === "pen" || sub === "animalpen") return modules.baseBuilder.buildAnimalPen(bot, args[2] || "oak_fence", Number(args[3]) || 9);
+    if (sub === "tower" || sub === "watchtower") return modules.baseBuilder.buildWatchtower(bot, args[2] || "oak_planks", Number(args[3]) || 8);
     reply(modules.baseBuilder.baseHelp());
     return false;
   }
