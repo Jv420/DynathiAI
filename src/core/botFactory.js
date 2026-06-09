@@ -48,6 +48,9 @@ function createMinecraftBot(runtime) {
       modules: runtime.modules,
       jobManager: runtime.jobManager,
       brain: runtime.brain,
+      autonomous: runtime.autonomous,
+      villageBuilder: runtime.villageBuilder,
+      smartBrain: runtime.smartBrain,
       reply: text => bot.chat(String(text))
     });
   });
