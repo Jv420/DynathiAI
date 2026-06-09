@@ -30,6 +30,7 @@ function getSnapshot(bot) {
 
   const logCount = countItems(bot, name => name.includes("log") || name.includes("stem"));
   const plankCount = countItems(bot, name => name.includes("planks"));
+  const fenceCount = countItems(bot, name => name.includes("fence"));
   const stoneCount = countItems(bot, name =>
     name.includes("cobblestone") ||
     name === "stone" ||
@@ -45,6 +46,7 @@ function getSnapshot(bot) {
     foodCount,
     logCount,
     plankCount,
+    fenceCount,
     stoneCount,
     isNight: Boolean(bot.time?.isNight || bot.time?.timeOfDay >= 12541),
     hasPickaxe: hasItem(bot, name => name.includes("pickaxe")),
@@ -68,6 +70,7 @@ function createCooldowns() {
     go_mine_stone: 90000,
     go_lumberyard_wood: 90000,
     colony_build: 180000,
+    expansion_build: 240000,
     project_plan: 60000,
     sleep_night: 90000,
     low_health_eat_or_stop: 20000,
@@ -98,6 +101,12 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
       farmBuilt: false,
       warehouseBuilt: false,
       towerBuilt: false
+    },
+    expansion: {
+      enabled: process.env.SMART_EXPANSION_ENABLED !== "false",
+      animalPenBuilt: false,
+      extraFarmBuilt: false,
+      extraStorageBuilt: false
     },
     project: {
       active: "none",
@@ -158,6 +167,21 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
 
     if (!state.colony.towerBuilt) {
       state.project = { active: "watchtower", requiredPlanks: 120, progress: snap.plankCount, status: snap.plankCount >= 120 ? "ready_to_build" : "collecting_planks" };
+      return state.project;
+    }
+
+    if (state.expansion.enabled && !state.expansion.animalPenBuilt) {
+      state.project = { active: "animal_pen", requiredPlanks: 64, progress: snap.plankCount + snap.fenceCount, status: (snap.plankCount + snap.fenceCount) >= 64 ? "ready_to_build" : "collecting_materials" };
+      return state.project;
+    }
+
+    if (state.expansion.enabled && !state.expansion.extraFarmBuilt) {
+      state.project = { active: "extra_farm", requiredPlanks: 90, progress: snap.plankCount, status: snap.plankCount >= 90 ? "ready_to_build" : "collecting_planks" };
+      return state.project;
+    }
+
+    if (state.expansion.enabled && !state.expansion.extraStorageBuilt) {
+      state.project = { active: "extra_storage", requiredPlanks: 120, progress: snap.plankCount, status: snap.plankCount >= 120 ? "ready_to_build" : "collecting_planks" };
       return state.project;
     }
 
@@ -251,13 +275,44 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     });
   }
 
+  async function runExpansionBuilder(currentBot, snap) {
+    if (!state.expansion.enabled || !modules.baseBuilder || !state.colony.towerBuilt) return false;
+    if (snap.health <= 12 || snap.food <= 10 || snap.emptySlots < 4) return false;
+
+    return runAction("expansion_build", async () => {
+      if (jobManager) jobManager.stop(false);
+      await goHome(currentBot);
+      await wait(1000);
+
+      if (!state.expansion.animalPenBuilt && (snap.plankCount + snap.fenceCount) >= 64) {
+        currentBot.chat("🐄 Expansion Planner: animal pen bouwen.");
+        await modules.baseBuilder.buildAnimalPen(currentBot, "oak_fence", 9);
+        state.expansion.animalPenBuilt = true;
+        return;
+      }
+
+      if (!state.expansion.extraFarmBuilt && snap.plankCount >= 90) {
+        currentBot.chat("🌾 Expansion Planner: extra farm bouwen.");
+        await modules.baseBuilder.buildFarmPlot(currentBot, "oak_planks", 13);
+        state.expansion.extraFarmBuilt = true;
+        return;
+      }
+
+      if (!state.expansion.extraStorageBuilt && snap.plankCount >= 120) {
+        currentBot.chat("📦 Expansion Planner: extra storage platform bouwen.");
+        await modules.baseBuilder.buildPlatform(currentBot, "oak_planks", 13, 13);
+        state.expansion.extraStorageBuilt = true;
+      }
+    });
+  }
+
   async function runProjectPlanner(currentBot, currentMcData, snap) {
     const project = updateProject(snap);
     if (!state.colony.enabled || project.active === "complete" || project.active === "none") return false;
-    if (project.status !== "collecting_planks") return false;
+    if (project.status !== "collecting_planks" && project.status !== "collecting_materials") return false;
 
     return runAction("project_plan", async () => {
-      currentBot.chat(`📋 Project: ${project.active} | Planks: ${project.progress}/${project.requiredPlanks}. Ik verzamel hout.`);
+      currentBot.chat(`📋 Project: ${project.active} | Materials: ${project.progress}/${project.requiredPlanks}. Ik verzamel hout.`);
       await goLumberyardAndChop(currentBot, currentMcData);
     });
   }
@@ -346,6 +401,9 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
       const colonyResult = await runColonyBuilder(currentBot, snap);
       if (colonyResult) return true;
 
+      const expansionResult = await runExpansionBuilder(currentBot, snap);
+      if (expansionResult) return true;
+
       const projectResult = await runProjectPlanner(currentBot, currentMcData, snap);
       if (projectResult) return true;
 
@@ -376,7 +434,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     }, Number(process.env.SMART_INTERVAL_MS) || 15000);
 
     const currentBot = bot();
-    if (currentBot) currentBot.chat("🧠 SmartBrain V9 gestart.");
+    if (currentBot) currentBot.chat("🧠 SmartBrain V10 gestart.");
     decideAndAct().catch(() => {});
     return true;
   }
@@ -386,12 +444,12 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     if (state.loop) clearInterval(state.loop);
     state.loop = null;
     const currentBot = bot();
-    if (currentBot) currentBot.chat("🧠 SmartBrain V9 gestopt.");
+    if (currentBot) currentBot.chat("🧠 SmartBrain V10 gestopt.");
     return true;
   }
 
   function colonyStatus() {
-    return `🏘️ Colony: ${state.colony.enabled ? "aan" : "uit"} | Starter: ${state.colony.starterBuilt} | Farm: ${state.colony.farmBuilt} | Warehouse: ${state.colony.warehouseBuilt} | Tower: ${state.colony.towerBuilt} | Project: ${state.project.active} ${state.project.progress}/${state.project.requiredPlanks} (${state.project.status})`;
+    return `🏘️ Colony: ${state.colony.enabled ? "aan" : "uit"} | Starter: ${state.colony.starterBuilt} | Farm: ${state.colony.farmBuilt} | Warehouse: ${state.colony.warehouseBuilt} | Tower: ${state.colony.towerBuilt} | Expansion: ${state.expansion.enabled ? "aan" : "uit"} | AnimalPen: ${state.expansion.animalPenBuilt} | ExtraFarm: ${state.expansion.extraFarmBuilt} | ExtraStorage: ${state.expansion.extraStorageBuilt} | Project: ${state.project.active} ${state.project.progress}/${state.project.requiredPlanks} (${state.project.status})`;
   }
 
   function status() {
@@ -410,6 +468,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
       `Food stock: ${snap.foodCount}/${state.minimums.food}`,
       `Logs stock: ${snap.logCount}/${state.minimums.logs}`,
       `Planks: ${snap.plankCount}`,
+      `Fences: ${snap.fenceCount}`,
       `Stone stock: ${snap.stoneCount}/${state.minimums.stone}`,
       colonyStatus(),
       `Home: ${state.homeWaypoint}`,
@@ -475,6 +534,20 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     return true;
   }
 
+  function expansionOn() {
+    state.expansion.enabled = true;
+    const currentBot = bot();
+    if (currentBot) currentBot.chat("🗺️ Expansion Planner aangezet.");
+    return true;
+  }
+
+  function expansionOff() {
+    state.expansion.enabled = false;
+    const currentBot = bot();
+    if (currentBot) currentBot.chat("🗺️ Expansion Planner uitgezet.");
+    return true;
+  }
+
   return {
     state,
     start,
@@ -483,6 +556,8 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     colonyStatus,
     colonyOn,
     colonyOff,
+    expansionOn,
+    expansionOff,
     tick: decideAndAct,
     setHome,
     setWarehouse,
