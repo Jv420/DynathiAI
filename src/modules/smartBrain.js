@@ -17,6 +17,7 @@ function getSnapshot(bot) {
     position: bot.entity.position.floored(),
     emptySlots: bot.inventory.emptySlotCount(),
     inventoryCount: countInventory(bot),
+    isNight: Boolean(bot.time?.isNight || bot.time?.timeOfDay >= 12541),
     hasPickaxe: hasItem(bot, name => name.includes("pickaxe")),
     hasAxe: hasItem(bot, name => name.includes("axe")),
     hasSword: hasItem(bot, name => name.includes("sword")),
@@ -41,6 +42,7 @@ function getSnapshot(bot) {
 
 function createCooldowns() {
   return {
+    sleep_night: 90000,
     low_health_eat_or_stop: 20000,
     eat_food: 15000,
     store_inventory: 30000,
@@ -108,6 +110,14 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
         });
       }
 
+      if (snap.isNight && modules.sleep?.sleepInNearestBed) {
+        return runAction("sleep_night", async () => {
+          if (jobManager) jobManager.stop(false);
+          currentBot.chat("🌙 Nacht gedetecteerd. Ik zoek een bed.");
+          await modules.sleep.sleepInNearestBed(currentBot, false);
+        });
+      }
+
       if (snap.food <= 12) {
         return runAction("eat_food", async () => {
           if (modules.survival?.eatFood) await modules.survival.eatFood(currentBot);
@@ -166,7 +176,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     }, Number(process.env.SMART_INTERVAL_MS) || 15000);
 
     const currentBot = bot();
-    if (currentBot) currentBot.chat("🧠 SmartBrain V2 gestart.");
+    if (currentBot) currentBot.chat("🧠 SmartBrain V3 gestart.");
     decideAndAct().catch(() => {});
     return true;
   }
@@ -176,7 +186,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     if (state.loop) clearInterval(state.loop);
     state.loop = null;
     const currentBot = bot();
-    if (currentBot) currentBot.chat("🧠 SmartBrain V2 gestopt.");
+    if (currentBot) currentBot.chat("🧠 SmartBrain V3 gestopt.");
     return true;
   }
 
@@ -191,6 +201,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
       `Busy: ${state.busy}`,
       `Last action: ${state.lastAction}`,
       `Last skipped: ${state.lastSkipped}`,
+      `Night: ${snap.isNight ? "ja" : "nee"}`,
       `Health: ${snap.health}`,
       `Food: ${snap.food}`,
       `Empty slots: ${snap.emptySlots}`,
