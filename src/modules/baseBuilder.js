@@ -122,6 +122,73 @@ async function buildHut(bot, blockName = "oak_planks", size = 7, height = 4) {
   return true;
 }
 
+async function buildWarehouse(bot, blockName = "oak_planks", size = 11, height = 5) {
+  if (!bot || !bot.entity) return false;
+  size = Math.max(7, Math.min(Number(size) || 11, 17));
+  height = Math.max(4, Math.min(Number(height) || 5, 8));
+
+  const start = bot.entity.position.floored();
+  const y = start.y;
+  const half = Math.floor(size / 2);
+  let placed = 0;
+
+  bot.chat(`🏭 Warehouse bouwen: ${size}x${size}x${height} met ${blockName}`);
+
+  for (let x = -half; x <= half; x++) {
+    for (let z = -half; z <= half; z++) {
+      const ok = await placeBlockAt(bot, blockName, new Vec3(start.x + x, y, start.z + z));
+      if (ok) placed++;
+    }
+  }
+
+  for (let layer = 1; layer <= height; layer++) {
+    for (let x = -half; x <= half; x++) {
+      for (let z = -half; z <= half; z++) {
+        const isWall = x === -half || x === half || z === -half || z === half;
+        if (!isWall) continue;
+        const isDoubleDoor = z === -half && (x === 0 || x === 1) && (layer === 1 || layer === 2);
+        const isWindow = layer === 3 && ((Math.abs(x) === half && z % 3 === 0) || (Math.abs(z) === half && x % 3 === 0));
+        if (isDoubleDoor || isWindow) continue;
+        const ok = await placeBlockAt(bot, blockName, new Vec3(start.x + x, y + layer, start.z + z));
+        if (ok) placed++;
+      }
+    }
+  }
+
+  for (let x = -half; x <= half; x++) {
+    for (let z = -half; z <= half; z++) {
+      const ok = await placeBlockAt(bot, blockName, new Vec3(start.x + x, y + height + 1, start.z + z));
+      if (ok) placed++;
+    }
+  }
+
+  const chestSlots = [
+    [-half + 1, -half + 1], [-half + 2, -half + 1], [-half + 3, -half + 1],
+    [half - 1, -half + 1], [half - 2, -half + 1], [half - 3, -half + 1],
+    [-half + 1, half - 1], [-half + 2, half - 1], [-half + 3, half - 1],
+    [half - 1, half - 1], [half - 2, half - 1], [half - 3, half - 1]
+  ];
+
+  let chestPlaced = 0;
+  for (const [dx, dz] of chestSlots) {
+    const ok = await placeBlockAt(bot, "chest", new Vec3(start.x + dx, y + 1, start.z + dz));
+    if (ok) chestPlaced++;
+  }
+
+  let craftingPlaced = 0;
+  const craftingPositions = [
+    new Vec3(start.x - 1, y + 1, start.z + half - 1),
+    new Vec3(start.x + 1, y + 1, start.z + half - 1)
+  ];
+  for (const pos of craftingPositions) {
+    const ok = await placeBlockAt(bot, "crafting_table", pos);
+    if (ok) craftingPlaced++;
+  }
+
+  bot.chat(`✅ Warehouse klaar. Blocks: ${placed}, chests: ${chestPlaced}, crafting tables: ${craftingPlaced}.`);
+  return true;
+}
+
 async function buildFarmPlot(bot, blockName = "oak_planks", size = 9) {
   if (!bot || !bot.entity) return false;
   size = Math.max(5, Math.min(Number(size) || 9, 21));
@@ -135,10 +202,7 @@ async function buildFarmPlot(bot, blockName = "oak_planks", size = 9) {
   for (let x = -half; x <= half; x++) {
     for (let z = -half; z <= half; z++) {
       const edge = x === -half || x === half || z === -half || z === half;
-      const waterLine = x === 0 && Math.abs(z) < half;
-      const block = edge ? blockName : waterLine ? "water_bucket" : null;
-      if (!block) continue;
-      if (block === "water_bucket") continue;
+      if (!edge) continue;
       const ok = await placeBlockAt(bot, blockName, new Vec3(start.x + x, y, start.z + z));
       if (ok) placed++;
     }
@@ -210,13 +274,14 @@ async function buildStarterBase(bot, blockName = "oak_planks") {
 }
 
 function baseHelp() {
-  return "Gebruik: base platform <block> <width> <depth> | base hut <block> <size> <height> | base starter <block> | base farm <block> <size> | base pen <fence> <size> | base tower <block> <height>";
+  return "Gebruik: base platform <block> <width> <depth> | base hut <block> <size> <height> | base starter <block> | base warehouse <block> <size> <height> | base farm <block> <size> | base pen <fence> <size> | base tower <block> <height>";
 }
 
 module.exports = {
   buildPlatform,
   buildHut,
   buildStarterBase,
+  buildWarehouse,
   buildFarmPlot,
   buildAnimalPen,
   buildWatchtower,
