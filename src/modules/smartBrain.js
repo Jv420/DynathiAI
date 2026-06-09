@@ -68,6 +68,7 @@ function createCooldowns() {
     go_mine_stone: 90000,
     go_lumberyard_wood: 90000,
     colony_build: 180000,
+    project_plan: 60000,
     sleep_night: 90000,
     low_health_eat_or_stop: 20000,
     eat_food: 15000,
@@ -98,6 +99,12 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
       warehouseBuilt: false,
       towerBuilt: false
     },
+    project: {
+      active: "none",
+      requiredPlanks: 0,
+      progress: 0,
+      status: "idle"
+    },
     homeWaypoint: process.env.SMART_HOME_WAYPOINT || "home",
     warehouseWaypoint: process.env.SMART_WAREHOUSE_WAYPOINT || "warehouse",
     farmWaypoint: process.env.SMART_FARM_WAYPOINT || "farm",
@@ -126,6 +133,36 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     mark(action);
     await fn();
     return true;
+  }
+
+  function updateProject(snap) {
+    if (!state.colony.enabled) {
+      state.project = { active: "none", requiredPlanks: 0, progress: 0, status: "colony_off" };
+      return state.project;
+    }
+
+    if (!state.colony.starterBuilt) {
+      state.project = { active: "starter_base", requiredPlanks: 80, progress: snap.plankCount, status: snap.plankCount >= 80 ? "ready_to_build" : "collecting_planks" };
+      return state.project;
+    }
+
+    if (!state.colony.farmBuilt) {
+      state.project = { active: "farm_plot", requiredPlanks: 80, progress: snap.plankCount, status: snap.plankCount >= 80 ? "ready_to_build" : "collecting_planks" };
+      return state.project;
+    }
+
+    if (!state.colony.warehouseBuilt) {
+      state.project = { active: "warehouse", requiredPlanks: 160, progress: snap.plankCount, status: snap.plankCount >= 160 ? "ready_to_build" : "collecting_planks" };
+      return state.project;
+    }
+
+    if (!state.colony.towerBuilt) {
+      state.project = { active: "watchtower", requiredPlanks: 120, progress: snap.plankCount, status: snap.plankCount >= 120 ? "ready_to_build" : "collecting_planks" };
+      return state.project;
+    }
+
+    state.project = { active: "complete", requiredPlanks: 0, progress: snap.plankCount, status: "done" };
+    return state.project;
   }
 
   async function goWaypoint(currentBot, waypointName) {
@@ -173,6 +210,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
   }
 
   function canColonyBuild(snap) {
+    updateProject(snap);
     return state.colony.enabled && modules.baseBuilder && snap.plankCount >= 80 && snap.health > 12 && snap.food > 10 && snap.emptySlots >= 4;
   }
 
@@ -185,31 +223,42 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
       await wait(1000);
 
       if (!state.colony.starterBuilt) {
-        currentBot.chat("🏘️ Colony Builder: starter base bouwen.");
+        currentBot.chat("🏘️ Project Planner: starter base bouwen.");
         await modules.baseBuilder.buildStarterBase(currentBot, "oak_planks");
         state.colony.starterBuilt = true;
         return;
       }
 
       if (!state.colony.farmBuilt) {
-        currentBot.chat("🏘️ Colony Builder: farm plot bouwen.");
+        currentBot.chat("🏘️ Project Planner: farm plot bouwen.");
         await modules.baseBuilder.buildFarmPlot(currentBot, "oak_planks", 9);
         state.colony.farmBuilt = true;
         return;
       }
 
       if (!state.colony.warehouseBuilt && snap.plankCount >= 160) {
-        currentBot.chat("🏘️ Colony Builder: warehouse bouwen.");
+        currentBot.chat("🏘️ Project Planner: warehouse bouwen.");
         await modules.baseBuilder.buildWarehouse(currentBot, "oak_planks", 11, 5);
         state.colony.warehouseBuilt = true;
         return;
       }
 
       if (!state.colony.towerBuilt && snap.plankCount >= 120) {
-        currentBot.chat("🏘️ Colony Builder: watchtower bouwen.");
+        currentBot.chat("🏘️ Project Planner: watchtower bouwen.");
         await modules.baseBuilder.buildWatchtower(currentBot, "oak_planks", 8);
         state.colony.towerBuilt = true;
       }
+    });
+  }
+
+  async function runProjectPlanner(currentBot, currentMcData, snap) {
+    const project = updateProject(snap);
+    if (!state.colony.enabled || project.active === "complete" || project.active === "none") return false;
+    if (project.status !== "collecting_planks") return false;
+
+    return runAction("project_plan", async () => {
+      currentBot.chat(`📋 Project: ${project.active} | Planks: ${project.progress}/${project.requiredPlanks}. Ik verzamel hout.`);
+      await goLumberyardAndChop(currentBot, currentMcData);
     });
   }
 
@@ -224,6 +273,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     try {
       const snap = getSnapshot(currentBot);
       if (!snap) return false;
+      updateProject(snap);
 
       if (snap.health <= 6) {
         return runAction("go_home_low_health", async () => {
@@ -293,15 +343,18 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
         });
       }
 
+      const colonyResult = await runColonyBuilder(currentBot, snap);
+      if (colonyResult) return true;
+
+      const projectResult = await runProjectPlanner(currentBot, currentMcData, snap);
+      if (projectResult) return true;
+
       if (snap.logCount < state.minimums.logs && modules.woodcutting?.chopWood && snap.hasAxe) {
         return runAction("go_lumberyard_wood", async () => {
           currentBot.chat(`🌲 Houtvoorraad laag: ${snap.logCount}/${state.minimums.logs}. Ik ga hout halen.`);
           await goLumberyardAndChop(currentBot, currentMcData);
         });
       }
-
-      const colonyResult = await runColonyBuilder(currentBot, snap);
-      if (colonyResult) return true;
 
       state.lastAction = "idle_ok";
       state.lastSkipped = "none";
@@ -323,7 +376,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     }, Number(process.env.SMART_INTERVAL_MS) || 15000);
 
     const currentBot = bot();
-    if (currentBot) currentBot.chat("🧠 SmartBrain V8 gestart.");
+    if (currentBot) currentBot.chat("🧠 SmartBrain V9 gestart.");
     decideAndAct().catch(() => {});
     return true;
   }
@@ -333,18 +386,19 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     if (state.loop) clearInterval(state.loop);
     state.loop = null;
     const currentBot = bot();
-    if (currentBot) currentBot.chat("🧠 SmartBrain V8 gestopt.");
+    if (currentBot) currentBot.chat("🧠 SmartBrain V9 gestopt.");
     return true;
   }
 
   function colonyStatus() {
-    return `🏘️ Colony: ${state.colony.enabled ? "aan" : "uit"} | Starter: ${state.colony.starterBuilt} | Farm: ${state.colony.farmBuilt} | Warehouse: ${state.colony.warehouseBuilt} | Tower: ${state.colony.towerBuilt}`;
+    return `🏘️ Colony: ${state.colony.enabled ? "aan" : "uit"} | Starter: ${state.colony.starterBuilt} | Farm: ${state.colony.farmBuilt} | Warehouse: ${state.colony.warehouseBuilt} | Tower: ${state.colony.towerBuilt} | Project: ${state.project.active} ${state.project.progress}/${state.project.requiredPlanks} (${state.project.status})`;
   }
 
   function status() {
     const currentBot = bot();
     const snap = getSnapshot(currentBot);
     if (!snap) return "🧠 SmartBrain: bot is nog niet online.";
+    updateProject(snap);
 
     return [
       `🧠 SmartBrain: ${state.enabled ? "aan" : "uit"}`,
@@ -352,6 +406,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
       `Busy: ${state.busy}`,
       `Last action: ${state.lastAction}`,
       `Last skipped: ${state.lastSkipped}`,
+      `Project: ${state.project.active} | ${state.project.progress}/${state.project.requiredPlanks} | ${state.project.status}`,
       `Food stock: ${snap.foodCount}/${state.minimums.food}`,
       `Logs stock: ${snap.logCount}/${state.minimums.logs}`,
       `Planks: ${snap.plankCount}`,
