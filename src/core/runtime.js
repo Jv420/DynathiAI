@@ -2,6 +2,7 @@ const { createLogger } = require("../utils/logger");
 const { loadModules } = require("./moduleLoader");
 const { createJobManager } = require("../modules/jobs");
 const { createBrainLoop } = require("../modules/aiBrain");
+const { createAutonomousMode } = require("../modules/autonomous");
 
 function createRuntime() {
   const logger = createLogger();
@@ -37,6 +38,15 @@ function createRuntime() {
 
   const brain = createBrainLoop(getBot, modules, Number(process.env.BRAIN_INTERVAL_MS) || 10000);
 
+  const autonomous = createAutonomousMode({
+    bot: getBot,
+    mcData: getMcData,
+    modules,
+    jobManager,
+    brain,
+    log: logger.log
+  });
+
   function setBot(bot) {
     state.bot = bot;
   }
@@ -51,6 +61,7 @@ function createRuntime() {
     logger,
     jobManager,
     brain,
+    autonomous,
     getBot,
     getMcData,
     setBot,
