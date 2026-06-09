@@ -40,6 +40,7 @@ function startDiscordController(runtime) {
         modules: runtime.modules,
         jobManager: runtime.jobManager,
         brain: runtime.brain,
+        autonomous: runtime.autonomous,
         reply: text => message.reply(String(text).slice(0, 1900))
       });
     } catch (err) {
