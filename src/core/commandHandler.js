@@ -3,7 +3,7 @@ async function handleCommand({ bot, mcData, args, modules, jobManager, brain, re
   const sub = (args[1] || "").toLowerCase();
 
   if (command === "help") {
-    reply("🤖 DynathiAI commands: mine, chop, fish, farm, chest, shulker, craft, build, goto, follow, stop, attack, guard, eat, status, sleep, brain, job, bal, sell, shop, ah");
+    reply("🤖 DynathiAI commands: mine, chop, fish, farm, chest, shulker, craft, build, goto, waypoint, follow, stop, attack, guard, eat, status, sleep, brain, job, balance, sell, shop, ah");
     return true;
   }
 
@@ -46,7 +46,20 @@ async function handleCommand({ bot, mcData, args, modules, jobManager, brain, re
     if (sub === "wall") return modules.building.buildWall(bot, args[2] || "oak_planks", Number(args[3]) || 5, Number(args[4]) || 3);
   }
 
+  if (command === "waypoint" || command === "wp") {
+    if (!modules.waypoints) return reply("❌ Waypoints module is niet geladen.");
+    if (sub === "set") return modules.waypoints.setWaypoint(bot, args[2]);
+    if (sub === "list") return reply(modules.waypoints.waypointReport().slice(0, 1900));
+    if (sub === "remove" || sub === "delete") return modules.waypoints.removeWaypoint(bot, args[2]);
+    if (sub === "goto") return modules.waypoints.goToWaypoint(bot, args[2]);
+    reply("Gebruik: waypoint set <naam> | list | goto <naam> | remove <naam>");
+    return false;
+  }
+
   if (command === "goto") {
+    if (modules.waypoints && args[1] && !args[2] && !args[3]) {
+      return modules.waypoints.goToWaypoint(bot, args[1]);
+    }
     return modules.navigation.goToCoords(bot, args[1], args[2], args[3]);
   }
 
