@@ -143,11 +143,96 @@ bot smart expansion on
 bot smart status
 ```
 
-## 4. Test Territory / Outpost
+---
+
+# 🧠 Verschil tussen `smart start`, `colony on` en `expansion on`
+
+Deze drie commands lijken op elkaar, maar doen iets anders.
+
+## `bot smart start`
+
+Dit zet de **SmartBrain loop** aan.
+
+Dat betekent: Dynathi begint elke paar seconden te denken en kiest automatisch een rol.
+
+Voorbeelden:
 
 ```txt
+Health laag      -> Survivor
+Food laag        -> Farmer
+Inventory vol    -> Warehouse Manager
+Steen tekort     -> Miner
+Hout tekort      -> Lumberjack
+Project klaar    -> Builder
+```
+
+Zonder `bot smart start` denkt Dynathi niet automatisch. Dan staan `colony on` en `expansion on` wel klaar, maar er gebeurt weinig tot je `smart start` gebruikt.
+
+## `bot smart colony on`
+
+Dit zet de **Colony Builder** aan.
+
+De Colony Builder bepaalt of Dynathi de hoofdbasis mag bouwen.
+
+Bouwvolgorde:
+
+```txt
+1. Starter Base
+2. Farm Plot
+3. Warehouse
+4. Watchtower
+```
+
+Dit command start dus niet de denk-loop zelf. Het zegt alleen: “Dynathi mag colony-projecten bouwen zodra SmartBrain draait.”
+
+## `bot smart expansion on`
+
+Dit zet de **Expansion Planner** aan.
+
+Deze fase begint pas nadat de basis/colony grotendeels klaar is.
+
+Expansion bouwt:
+
+```txt
+5. Animal Pen
+6. Extra Farm
+7. Extra Storage
+```
+
+Dit is dus uitbreiding na de eerste basis.
+
+## Simpel gezegd
+
+```txt
+bot smart start       = AI brein aanzetten
+bot smart colony on   = hoofdbasis bouwen toestaan
+bot smart expansion on= uitbreiding na hoofdbasis toestaan
+```
+
+Aanbevolen startvolgorde:
+
+```txt
+bot smart start
+bot smart colony on
+bot smart expansion on
 bot smart status
 ```
+
+Alles stoppen:
+
+```txt
+bot stop
+```
+
+Of alleen SmartBrain stoppen:
+
+```txt
+bot smart stop
+```
+
+---
+
+## 4. Test Territory / Outpost
 
 De bot gebruikt standaard het waypoint:
 
@@ -159,6 +244,12 @@ Zorg dus dat deze bestaat:
 
 ```txt
 bot waypoint set outpost
+```
+
+Controleer daarna:
+
+```txt
+bot smart status
 ```
 
 ---
@@ -457,11 +548,12 @@ bot waypoint set outpost
 bot waypoint list
 ```
 
-## Test 3: basis AI status
+## Test 3: verschil commands testen
 
 ```txt
 bot smart status
-bot smart tick
+bot smart colony
+bot smart expansion
 ```
 
 ## Test 4: kolonist starten
@@ -522,6 +614,7 @@ Role: Outpost Builder
 - Als crafting niet lukt, plaats een crafting table dichtbij.
 - Als storage niet lukt, plaats een chest dichtbij warehouse.
 - Als slapen niet lukt, plaats een bed dichtbij home.
+- Na GitHub updates altijd de bot herstarten.
 
 ---
 
