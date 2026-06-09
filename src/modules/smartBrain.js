@@ -4,6 +4,12 @@ function countInventory(bot) {
   return bot.inventory.items().reduce((total, item) => total + item.count, 0);
 }
 
+function countItems(bot, matcher) {
+  return bot.inventory.items()
+    .filter(item => matcher(item.name))
+    .reduce((total, item) => total + item.count, 0);
+}
+
 function hasItem(bot, matcher) {
   return bot.inventory.items().some(item => matcher(item.name));
 }
@@ -11,26 +17,38 @@ function hasItem(bot, matcher) {
 function getSnapshot(bot) {
   if (!bot || !bot.entity) return null;
 
+  const foodCount = countItems(bot, name =>
+    name.includes("bread") ||
+    name.includes("apple") ||
+    name.includes("beef") ||
+    name.includes("chicken") ||
+    name.includes("porkchop") ||
+    name.includes("mutton") ||
+    name.includes("carrot") ||
+    name.includes("potato")
+  );
+
+  const logCount = countItems(bot, name => name.includes("log") || name.includes("stem"));
+  const stoneCount = countItems(bot, name =>
+    name.includes("cobblestone") ||
+    name === "stone" ||
+    name.includes("deepslate")
+  );
+
   return {
     health: bot.health,
     food: bot.food,
     position: bot.entity.position.floored(),
     emptySlots: bot.inventory.emptySlotCount(),
     inventoryCount: countInventory(bot),
+    foodCount,
+    logCount,
+    stoneCount,
     isNight: Boolean(bot.time?.isNight || bot.time?.timeOfDay >= 12541),
     hasPickaxe: hasItem(bot, name => name.includes("pickaxe")),
     hasAxe: hasItem(bot, name => name.includes("axe")),
     hasSword: hasItem(bot, name => name.includes("sword")),
-    hasFood: hasItem(bot, name =>
-      name.includes("bread") ||
-      name.includes("apple") ||
-      name.includes("beef") ||
-      name.includes("chicken") ||
-      name.includes("porkchop") ||
-      name.includes("mutton") ||
-      name.includes("carrot") ||
-      name.includes("potato")
-    ),
+    hasFood: foodCount > 0,
     hasBlocks: hasItem(bot, name =>
       name.includes("planks") ||
       name.includes("cobblestone") ||
@@ -44,14 +62,14 @@ function createCooldowns() {
   return {
     go_home_low_health: 60000,
     go_warehouse_store: 45000,
-    go_farm_food: 45000,
-    go_lumberyard_wood: 45000,
+    go_farm_food: 90000,
+    go_mine_stone: 90000,
+    go_lumberyard_wood: 90000,
     sleep_night: 90000,
     low_health_eat_or_stop: 20000,
     eat_food: 15000,
     craft_pickaxe: 60000,
-    craft_axe: 60000,
-    start_wood_job: 30000
+    craft_axe: 60000
   };
 }
 
@@ -65,6 +83,11 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     loop: null,
     actionTimes: {},
     cooldowns: createCooldowns(),
+    minimums: {
+      food: Number(process.env.SMART_MIN_FOOD) || 16,
+      logs: Number(process.env.SMART_MIN_LOGS) || 32,
+      stone: Number(process.env.SMART_MIN_STONE) || 64
+    },
     homeWaypoint: process.env.SMART_HOME_WAYPOINT || "home",
     warehouseWaypoint: process.env.SMART_WAREHOUSE_WAYPOINT || "warehouse",
     farmWaypoint: process.env.SMART_FARM_WAYPOINT || "farm",
@@ -120,6 +143,14 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     await goWaypoint(currentBot, state.farmWaypoint);
     await wait(1000);
     if (modules.farming?.farm) await modules.farming.farm(currentBot, currentMcData, "wheat", 20);
+    return true;
+  }
+
+  async function goMineAndCollect(currentBot, currentMcData) {
+    if (jobManager) jobManager.stop(false);
+    await goWaypoint(currentBot, state.mineWaypoint);
+    await wait(1000);
+    if (modules.mining?.mineBlock) await modules.mining.mineBlock(currentBot, currentMcData, "stone", 12);
     return true;
   }
 
@@ -197,18 +228,24 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
         });
       }
 
-      if (!snap.hasFood && modules.farming?.farm) {
+      if (snap.foodCount < state.minimums.food && modules.farming?.farm) {
         return runAction("go_farm_food", async () => {
-          currentBot.chat("🌾 Geen eten gevonden. Ik ga naar farm waypoint.");
+          currentBot.chat(`🌾 Voedselvoorraad laag: ${snap.foodCount}/${state.minimums.food}. Ik ga farmen.`);
           await goFarmAndHarvest(currentBot, currentMcData);
         });
       }
 
-      if (jobManager && !jobManager.state.enabled) {
+      if (snap.stoneCount < state.minimums.stone && modules.mining?.mineBlock && snap.hasPickaxe) {
+        return runAction("go_mine_stone", async () => {
+          currentBot.chat(`⛏️ Steenvoorraad laag: ${snap.stoneCount}/${state.minimums.stone}. Ik ga minen.`);
+          await goMineAndCollect(currentBot, currentMcData);
+        });
+      }
+
+      if (snap.logCount < state.minimums.logs && modules.woodcutting?.chopWood && snap.hasAxe) {
         return runAction("go_lumberyard_wood", async () => {
-          currentBot.chat("🌲 Geen actieve job. Ik ga naar lumberyard voor hout.");
+          currentBot.chat(`🌲 Houtvoorraad laag: ${snap.logCount}/${state.minimums.logs}. Ik ga hout halen.`);
           await goLumberyardAndChop(currentBot, currentMcData);
-          jobManager.start("wood", "logs");
         });
       }
 
@@ -232,7 +269,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     }, Number(process.env.SMART_INTERVAL_MS) || 15000);
 
     const currentBot = bot();
-    if (currentBot) currentBot.chat("🧠 SmartBrain V6 gestart.");
+    if (currentBot) currentBot.chat("🧠 SmartBrain V7 gestart.");
     decideAndAct().catch(() => {});
     return true;
   }
@@ -242,7 +279,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     if (state.loop) clearInterval(state.loop);
     state.loop = null;
     const currentBot = bot();
-    if (currentBot) currentBot.chat("🧠 SmartBrain V6 gestopt.");
+    if (currentBot) currentBot.chat("🧠 SmartBrain V7 gestopt.");
     return true;
   }
 
@@ -257,6 +294,9 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
       `Busy: ${state.busy}`,
       `Last action: ${state.lastAction}`,
       `Last skipped: ${state.lastSkipped}`,
+      `Food stock: ${snap.foodCount}/${state.minimums.food}`,
+      `Logs stock: ${snap.logCount}/${state.minimums.logs}`,
+      `Stone stock: ${snap.stoneCount}/${state.minimums.stone}`,
       `Home: ${state.homeWaypoint}`,
       `Warehouse: ${state.warehouseWaypoint}`,
       `Farm: ${state.farmWaypoint}`,
@@ -267,8 +307,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
       `Food: ${snap.food}`,
       `Empty slots: ${snap.emptySlots}`,
       `Pickaxe: ${snap.hasPickaxe ? "ja" : "nee"}`,
-      `Axe: ${snap.hasAxe ? "ja" : "nee"}`,
-      `Food item: ${snap.hasFood ? "ja" : "nee"}`
+      `Axe: ${snap.hasAxe ? "ja" : "nee"}`
     ].join(" | ");
   }
 
