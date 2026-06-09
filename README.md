@@ -1,8 +1,8 @@
 # 🤖 DynathiAI Pro Core - Minecraft AI Bot voor DynathiSMP
 
-DynathiAI is een Minecraft Java bot gemaakt met **Mineflayer**. De bot kan verbinden met je Minecraft server, Discord commands ontvangen, jobs uitvoeren, waypoints onthouden, items verkopen, minen, hout hakken, vissen, farmen, bouwen, bases maken, dorpen bouwen en Autonomous Mode draaien.
+DynathiAI is een Minecraft Java bot gemaakt met **Mineflayer**. De bot kan verbinden met je Minecraft server, Discord commands ontvangen, jobs uitvoeren, waypoints onthouden, minen, hout hakken, farmen, items opslaan, bases bouwen en nu ook draaien als **autonome SMP-kolonist / SMP-beschaving**.
 
-Deze README is expres **noob vriendelijk** gemaakt. Alles staat stap voor stap uitgelegd 😄
+Deze README is noob-vriendelijk gemaakt zodat je hem direct kunt testen 😄
 
 ---
 
@@ -23,7 +23,14 @@ Na elke GitHub update:
 
 ```bash
 git pull
+npm install
 npm start
+```
+
+Voor meer geheugen bij lange tests:
+
+```bash
+node --max-old-space-size=2048 bot.js
 ```
 
 ---
@@ -45,6 +52,22 @@ DISCORD_WEBHOOK_URL=JOUW_DISCORD_WEBHOOK_URL
 
 BRAIN_INTERVAL_MS=10000
 AUTONOMOUS_INTERVAL_MS=20000
+SMART_INTERVAL_MS=15000
+
+SMART_HOME_WAYPOINT=home
+SMART_WAREHOUSE_WAYPOINT=warehouse
+SMART_FARM_WAYPOINT=farm
+SMART_MINE_WAYPOINT=mine
+SMART_LUMBER_WAYPOINT=lumberyard
+SMART_OUTPOST_WAYPOINT=outpost
+
+SMART_MIN_FOOD=16
+SMART_MIN_LOGS=32
+SMART_MIN_STONE=64
+
+SMART_COLONY_ENABLED=true
+SMART_EXPANSION_ENABLED=true
+SMART_TERRITORY_ENABLED=true
 ```
 
 Voor Paper servers kan dit nodig zijn in `server.properties`:
@@ -78,239 +101,168 @@ bot help
 
 ---
 
-# 📜 Belangrijkste commands
+# 🚀 Snelle test: autonome SMP-kolonist
 
-## Basis
+## 1. Zet de bot op een vlak testgebied
+
+Gebruik een leeg vlak gebied met genoeg ruimte. Zet eerst de basis waypoints.
 
 ```txt
-!bot help
-!bot status
-!bot stop
+bot waypoint set home
+bot waypoint set warehouse
+bot waypoint set farm
+bot waypoint set mine
+bot waypoint set lumberyard
+bot waypoint set outpost
 ```
 
-## Mining
+Tip: zet `outpost` op een andere plek dan home, bijvoorbeeld 50 tot 100 blocks verderop.
+
+## 2. Geef testmateriaal
+
+Gebruik je eigen botnaam als die anders is dan `Dynathi`.
 
 ```txt
-!bot mine stone 5
-!bot mine coal_ore 3
-!bot mine iron_ore 3
-!bot mine dirt 10
-```
-
-## Woodcutting
-
-```txt
-!bot chop 10
-!bot wood 10
-```
-
-## Fishing
-
-```txt
-!bot fish
-```
-
-## Farming
-
-```txt
-!bot farm wheat 20
-!bot farm carrot 20
-!bot farm potato 20
-!bot farm beetroot 20
-!bot farm sugar_cane 20
-```
-
-## Storage
-
-```txt
-!bot chest store
-!bot chest dump
-!bot chest take oak_log 64
-
-!bot shulker store
-!bot shulker dump
-!bot shulker take diamond 1
-```
-
-## Crafting
-
-```txt
-!bot craft chest 1
-!bot craft furnace 1
-!bot craft stone_pickaxe 1
-!bot craft stone_axe 1
-!bot craft shield 1
-```
-
-## Navigation
-
-```txt
-!bot goto 100 64 -200
-!bot follow JouwNaam
-!bot stop
-```
-
----
-
-# 🏠 BaseBuilder V2
-
-BaseBuilder kan losse gebouwen en simpele structuren maken.
-
-## Starter base
-
-```txt
-!bot base starter oak_planks
-```
-
-## Hut / house
-
-```txt
-!bot base hut oak_planks
-!bot base hut oak_planks 9 5
-```
-
-## Platform
-
-```txt
-!bot base platform oak_planks 9 9
-!bot base platform cobblestone 15 15
-```
-
-## Farm plot
-
-```txt
-!bot base farm oak_planks 11
-```
-
-## Animal pen
-
-```txt
-!bot base pen oak_fence 11
-```
-
-## Watchtower
-
-```txt
-!bot base tower oak_planks 10
-```
-
-## Eerste base test
-
-```txt
-/give Dynathi oak_planks 512
-/give Dynathi oak_fence 256
-
-!bot waypoint set base
-!bot goto base
-!bot base platform oak_planks 9 9
-!bot base starter oak_planks
-```
-
-Let op: BaseBuilder V2 is nog simpel. Hij werkt het beste op vlakke grond met genoeg ruimte.
-
----
-
-# 🏘️ VillageBuilder V1
-
-VillageBuilder bouwt automatisch een klein dorp rond de plek waar de bot staat.
-
-## Start dorp bouwen
-
-```txt
-!bot village start oak_planks
-```
-
-Of met cobblestone:
-
-```txt
-!bot village start cobblestone
-```
-
-## Status bekijken
-
-```txt
-!bot village status
-```
-
-Voorbeeld:
-
-```txt
-🏘️ VillageBuilder: aan | Step: farm_plot | Busy: true
-```
-
-## Stoppen
-
-```txt
-!bot village stop
-```
-
-Of alles stoppen:
-
-```txt
-!bot stop
-```
-
-## Wat bouwt VillageBuilder?
-
-```txt
-🏘️ Town Square / centraal plein
-🏠 Starter House
-🌾 Farm Plot
-🐄 Animal Pen
-🗼 Watchtower
-```
-
-Layout ongeveer:
-
-```txt
-        🗼
-
-🌾  🏘️  🏠
-
-      🐄
-```
-
-## Eerste VillageBuilder test
-
-Geef Dynathi genoeg materiaal:
-
-```txt
+/give Dynathi bread 32
+/give Dynathi stone_pickaxe 1
+/give Dynathi stone_axe 1
 /give Dynathi oak_planks 1024
-/give Dynathi oak_fence 512
+/give Dynathi oak_fence 256
+/give Dynathi cobblestone 256
+/give Dynathi stick 64
+/give Dynathi chest 32
+/give Dynathi crafting_table 8
 ```
 
-Ga naar een groot vlak gebied en zet waypoint:
+## 3. Start SmartBrain
 
 ```txt
-!bot waypoint set village
-!bot goto village
+bot smart start
+bot smart colony on
+bot smart expansion on
+bot smart status
 ```
 
-Start dan:
+## 4. Test Territory / Outpost
 
 ```txt
-!bot village start oak_planks
+bot smart status
 ```
 
-Controleer status:
+De bot gebruikt standaard het waypoint:
 
 ```txt
-!bot village status
+outpost
 ```
 
-Verwachte output:
+Zorg dus dat deze bestaat:
 
 ```txt
-🏘️ VillageBuilder gestart met oak_planks
-🏗️ Platform bouwen: 15x15 met oak_planks
-🏠 Starter hut bouwen
-🌾 Farm plot bouwen
-🐄 Animal pen bouwen
-🗼 Watchtower bouwen
-✅ VillageBuilder klaar
+bot waypoint set outpost
 ```
 
-Belangrijk: gebruik eerst een vlak leeg terrein. VillageBuilder V1 gebruikt vaste afstanden rond het startpunt.
+---
+
+# 🧠 SmartBrain commands
+
+```txt
+bot smart start
+bot smart stop
+bot smart status
+bot smart tick
+```
+
+Waypoints instellen voor SmartBrain:
+
+```txt
+bot smart home home
+bot smart warehouse warehouse
+bot smart farm farm
+bot smart mine mine
+bot smart lumber lumberyard
+```
+
+Colony Builder:
+
+```txt
+bot smart colony
+bot smart colony on
+bot smart colony off
+```
+
+Expansion Planner:
+
+```txt
+bot smart expansion
+bot smart expansion on
+bot smart expansion off
+```
+
+Alles stoppen:
+
+```txt
+bot stop
+```
+
+---
+
+# 🤖 Wat doet de autonome SMP-kolonist?
+
+Dynathi kiest automatisch een rol:
+
+```txt
+🛡️ Survivor          lage health / veiligheid
+🌙 Sleeper           nacht / bed zoeken
+🌾 Farmer            voedsel regelen
+🌲 Lumberjack        hout en bouwmaterialen verzamelen
+⛏️ Miner             steen verzamelen
+🔨 Crafter           tools maken
+📦 Warehouse Manager inventory opslaan
+🏗️ Builder           projecten bouwen
+🏕️ Outpost Builder   nieuwe outpost bouwen
+🤖 Colonist          onderhoud en wachten
+```
+
+Status voorbeeld:
+
+```txt
+bot smart status
+```
+
+Output lijkt op:
+
+```txt
+🤖 Autonome SMP-beschaving: aan | Role: Builder | Task: Project bouwen: warehouse | Project: warehouse | 120/160 | ready_to_build
+```
+
+---
+
+# 🏘️ Bouwvolgorde
+
+## Colony fase
+
+```txt
+1. Starter Base
+2. Farm Plot
+3. Warehouse
+4. Watchtower
+```
+
+## Expansion fase
+
+```txt
+5. Animal Pen
+6. Extra Farm
+7. Extra Storage
+```
+
+## Territory fase
+
+```txt
+8. Outpost Base
+9. Outpost Farm
+10. Outpost Storage
+```
 
 ---
 
@@ -322,84 +274,57 @@ Waypoints worden opgeslagen in:
 data/waypoints.json
 ```
 
-## Waypoint opslaan
+Belangrijkste waypoints voor SmartBrain:
 
 ```txt
-!bot waypoint set home
-!bot waypoint set base
-!bot waypoint set village
-!bot waypoint set warehouse
-!bot waypoint set farm
-!bot waypoint set mine
-!bot waypoint set fishing
-!bot waypoint set bed
+home
+warehouse
+farm
+mine
+lumberyard
+outpost
 ```
 
-Minecraft chat:
+Waypoint opslaan:
 
 ```txt
 bot waypoint set home
 ```
 
-## Waypoints bekijken
+Waypoints bekijken:
 
 ```txt
-!bot waypoint list
+bot waypoint list
 ```
 
-## Naar waypoint lopen
+Naar waypoint lopen:
 
 ```txt
-!bot goto home
-!bot goto base
-!bot goto village
-!bot goto warehouse
-!bot goto farm
-!bot goto mine
+bot goto home
+bot goto warehouse
+bot goto farm
+bot goto mine
+bot goto lumberyard
+bot goto outpost
 ```
 
-Of:
+Waypoint verwijderen:
 
 ```txt
-!bot waypoint goto home
-```
-
-## Waypoint verwijderen
-
-```txt
-!bot waypoint remove mine
-!bot waypoint delete mine
-```
-
-Aanbevolen waypoints voor DynathiSMP:
-
-```txt
-home
-base
-village
-warehouse
-farm
-mine
-fishing
-bed
-spawn
-animalfarm
-shop
+bot waypoint remove outpost
 ```
 
 ---
 
 # 📦 WarehouseAI
 
-WarehouseAI geeft overzicht van de inventory en kan items slim opslaan.
-
 ```txt
-!bot warehouse report
-!bot warehouse store
-!bot warehouse storecat wood
-!bot warehouse storecat ores
-!bot warehouse storecat food
-!bot warehouse storecat tools
+bot warehouse report
+bot warehouse store
+bot warehouse storecat wood
+bot warehouse storecat ores
+bot warehouse storecat food
+bot warehouse storecat tools
 ```
 
 Categorieën:
@@ -417,17 +342,40 @@ misc
 
 ---
 
-# 🗺️ Explorer
+# 🏠 BaseBuilder
+
+Los bouwen:
 
 ```txt
-!bot explore
-!bot explore forest
-!bot explore cave
-!bot explore ore
-!bot explore water
-!bot explore village
-!bot explore farm
-!bot explore chest
+bot base starter oak_planks
+bot base hut oak_planks 9 5
+bot base platform oak_planks 9 9
+bot base warehouse oak_planks 11 5
+bot base farm oak_planks 11
+bot base pen oak_fence 11
+bot base tower oak_planks 10
+```
+
+Let op: bouwen werkt het beste op vlak terrein met genoeg ruimte.
+
+---
+
+# 🏘️ VillageBuilder
+
+```txt
+bot village start oak_planks
+bot village status
+bot village stop
+```
+
+VillageBuilder bouwt:
+
+```txt
+🏘️ Town Square
+🏠 Starter House
+🌾 Farm Plot
+🐄 Animal Pen
+🗼 Watchtower
 ```
 
 ---
@@ -435,74 +383,27 @@ misc
 # 💼 Jobs
 
 ```txt
-!bot job wood
-!bot job mine stone
-!bot job fish
-!bot job farm wheat
-!bot job status
-!bot job stop
-```
-
-Jobs kunnen automatisch acties herhalen, zoals vissen, hout hakken, minen of farmen.
-
----
-
-# 🧠 AI Brain
-
-```txt
-!bot brain
-!bot brain start
-!bot brain stop
+bot job wood
+bot job mine stone
+bot job fish
+bot job farm wheat
+bot job status
+bot job stop
 ```
 
 ---
 
-# 🤖 Autonomous Mode
+# 🗺️ Explorer
 
 ```txt
-!bot auto start
-!bot auto status
-!bot auto stop
-```
-
-Alles stoppen:
-
-```txt
-!bot stop
-```
-
-## Wat doet Autonomous Mode?
-
-Elke ongeveer 20 seconden controleert de bot zichzelf:
-
-```txt
-🍗 Heeft de bot honger? Dan probeert hij te eten.
-📦 Is de inventory bijna vol? Dan probeert hij items in een chest op te slaan.
-⛏️ Heeft hij geen pickaxe? Dan probeert hij een stone_pickaxe te craften.
-🪓 Heeft hij geen axe? Dan probeert hij een stone_axe te craften.
-🌾 Heeft hij geen eten? Dan probeert hij wheat te farmen.
-💼 Draait er geen job? Dan start hij automatisch een wood job.
-```
-
-Beste Autonomous setup:
-
-```txt
-1x crafting table
-1x chest
-1x bed
-water dichtbij voor fishing
-farm dichtbij voor wheat/food
-```
-
-Starter spullen:
-
-```txt
-/give Dynathi bread 16
-/give Dynathi stone_pickaxe 1
-/give Dynathi stone_axe 1
-/give Dynathi oak_planks 64
-/give Dynathi cobblestone 32
-/give Dynathi stick 16
+bot explore
+bot explore forest
+bot explore cave
+bot explore ore
+bot explore water
+bot explore village
+bot explore farm
+bot explore chest
 ```
 
 ---
@@ -510,224 +411,159 @@ Starter spullen:
 # 🍗 Survival
 
 ```txt
-!bot eat
-!bot status
+bot eat
+bot status
+bot sleep
+bot sleep force
+bot sleep wake
 ```
 
----
-
-# ⚔️ Combat
-
-```txt
-!bot attack
-!bot guard
-```
-
----
-
-# 🛏️ Sleep
-
-Plaats een bed dichtbij de bot.
-
-```txt
-!bot sleep
-!bot sleep force
-!bot sleep wake
-```
+Plaats voor SmartBrain liefst een bed, chest en crafting table bij home/warehouse.
 
 ---
 
 # 💰 Economy
 
 ```txt
-!bot balance
-!bot bal
-!bot sell
-!bot sellall
-!bot shop
-!bot ah
-!bot pay SpelerNaam 1000
+bot balance
+bot bal
+bot sell
+bot sellall
+bot shop
+bot ah
+bot pay SpelerNaam 1000
 ```
-
-`balance` gebruikt:
-
-```txt
-/balance
-```
-
-AutoSell gebruikt:
-
-```txt
-/sell
-```
-
-De bot probeert protected items niet te verkopen, zoals tools, armor, diamonds, emeralds, netherite en fishing rods.
 
 ---
 
 # 🧪 Aanbevolen testvolgorde
 
-Na een update:
+## Test 1: verbinding
 
 ```txt
-!bot status
-!bot brain
-!bot job status
-!bot waypoint set base
-!bot waypoint list
-!bot goto base
-!bot base platform oak_planks 9 9
-!bot base starter oak_planks
-!bot waypoint set village
-!bot village start oak_planks
-!bot village status
-!bot warehouse report
-!bot explore forest
-!bot auto start
-!bot auto status
-!bot job status
+bot help
+bot status
 ```
 
-Als je wilt stoppen:
+## Test 2: waypoints
 
 ```txt
-!bot auto stop
-!bot village stop
+bot waypoint set home
+bot waypoint set warehouse
+bot waypoint set farm
+bot waypoint set mine
+bot waypoint set lumberyard
+bot waypoint set outpost
+bot waypoint list
 ```
 
-Of alles tegelijk:
+## Test 3: basis AI status
 
 ```txt
-!bot stop
+bot smart status
+bot smart tick
+```
+
+## Test 4: kolonist starten
+
+```txt
+bot smart start
+bot smart colony on
+bot smart expansion on
+bot smart status
+```
+
+## Test 5: bouwen controleren
+
+Wacht een paar minuten en gebruik:
+
+```txt
+bot smart status
+```
+
+Je wilt zien:
+
+```txt
+Role: Builder
+Project: starter_base / farm_plot / warehouse / watchtower
+```
+
+## Test 6: outpost testen
+
+Ga naar een nieuwe plek en zet:
+
+```txt
+bot waypoint set outpost
+```
+
+Ga terug naar home of laat de bot verder draaien.
+
+Controleer:
+
+```txt
+bot smart status
+```
+
+Je wilt later zien:
+
+```txt
+Project: outpost_base
+Role: Outpost Builder
 ```
 
 ---
 
-# ⚠️ Veelvoorkomende meldingen
+# ⚠️ Bekende testtips
 
-## Geen crafting table dichtbij
+- Test eerst op een vlak gebied.
+- Geef genoeg oak_planks en oak_fence voor de eerste test.
+- Zet `home`, `warehouse`, `farm`, `mine`, `lumberyard` en `outpost` echt goed.
+- Gebruik `bot stop` als hij blijft lopen of bouwen.
+- Als crafting niet lukt, plaats een crafting table dichtbij.
+- Als storage niet lukt, plaats een chest dichtbij warehouse.
+- Als slapen niet lukt, plaats een bed dichtbij home.
 
-```txt
-❌ Geen crafting table dichtbij gevonden.
-```
+---
 
-Plaats een crafting table dichtbij de bot.
-
-## Geen chest dichtbij
-
-```txt
-❌ Geen Chest dichtbij gevonden.
-```
-
-Plaats een chest binnen ongeveer 5 blokken van de bot.
-
-## Geen bed dichtbij
+# 🛑 Stoppen
 
 ```txt
-❌ Geen bed dichtbij gevonden.
+bot stop
 ```
 
-Plaats een bed dichtbij de bot.
-
-## Geen oak_planks
-
-```txt
-🏠 Ik heb geen oak_planks in mijn inventory.
-```
-
-Geef de bot blocks:
-
-```txt
-/give Dynathi oak_planks 512
-```
-
-## Geen oak_fence
-
-```txt
-🐄 Animal pen bouwen: 11x11 met oak_fence
-```
-
-Als er weinig of geen fence wordt geplaatst:
-
-```txt
-/give Dynathi oak_fence 512
-```
-
-## BaseBuilder of VillageBuilder plaatst weinig blocks
-
-Gebruik vlakke grond en genoeg ruimte. Test eerst:
-
-```txt
-!bot base platform oak_planks 9 9
-```
-
-Als dat werkt, test daarna:
-
-```txt
-!bot base starter oak_planks
-```
-
-Daarna pas:
-
-```txt
-!bot village start oak_planks
-```
-
-## Fishing cancelled
-
-```txt
-❌ Vissen mislukt: Fishing cancelled
-```
-
-Controleer of de bot een fishing rod heeft en stil staat.
-
-## Autonomous controller is niet geladen
-
-```txt
-❌ Autonomous controller is niet geladen.
-```
-
-Doe eerst:
+Of server-side:
 
 ```bash
-git pull
-npm start
+CTRL + C
 ```
-
-## VillageBuilder controller is niet geladen
-
-```txt
-❌ VillageBuilder controller is niet geladen.
-```
-
-Doe eerst:
-
-```bash
-git pull
-npm start
-```
-
-De nieuwste versie geeft `runtime.villageBuilder` door aan Discord en Minecraft commands.
 
 ---
 
-# 🔐 Veiligheid
+# ✅ Minimum testpakket
 
-Zet nooit openbaar online:
+Voor een snelle demo is dit genoeg:
 
 ```txt
-Discord bot token
-Discord webhook URL
-Microsoft wachtwoord
-private keys
+/give Dynathi bread 32
+/give Dynathi stone_pickaxe 1
+/give Dynathi stone_axe 1
+/give Dynathi oak_planks 1024
+/give Dynathi oak_fence 256
+/give Dynathi cobblestone 256
+/give Dynathi chest 32
+/give Dynathi crafting_table 8
+
+bot waypoint set home
+bot waypoint set warehouse
+bot waypoint set farm
+bot waypoint set mine
+bot waypoint set lumberyard
+bot waypoint set outpost
+
+bot smart start
+bot smart colony on
+bot smart expansion on
+bot smart status
 ```
 
-Gebruik altijd `.env` voor geheime gegevens.
-
----
-
-# ❤️ Credits
-
-Gemaakt voor **DynathiSMP** door Jv420 / DynathiAI.
-
-Veel plezier met je AI Minecraft bot XD
+Veel plezier met je autonome DynathiSMP-kolonist 😎🔥
