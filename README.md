@@ -1,6 +1,6 @@
 # 🤖 DynathiAI Pro Core - Minecraft AI Bot voor DynathiSMP
 
-DynathiAI is een Minecraft Java bot gemaakt met **Mineflayer**. De bot kan verbinden met je Minecraft server, Discord commands ontvangen, jobs uitvoeren, waypoints onthouden, items verkopen, minen, hout hakken, vissen, farmen, bouwen en basis AI-acties uitvoeren.
+DynathiAI is een Minecraft Java bot gemaakt met **Mineflayer**. De bot kan verbinden met je Minecraft server, Discord commands ontvangen, jobs uitvoeren, waypoints onthouden, items verkopen, minen, hout hakken, vissen, farmen, bouwen en Autonomous Mode draaien.
 
 Deze README is expres **noob vriendelijk** gemaakt. Alles staat stap voor stap uitgelegd 😄
 
@@ -8,15 +8,8 @@ Deze README is expres **noob vriendelijk** gemaakt. Alles staat stap voor stap u
 
 ## ✅ Starten
 
-Installeer packages:
-
 ```bash
 npm install
-```
-
-Start de bot:
-
-```bash
 npm start
 ```
 
@@ -29,8 +22,6 @@ node bot.js
 ---
 
 ## ⚙️ .env voorbeeld
-
-Maak een `.env` bestand in de projectmap:
 
 ```env
 BOT_HOST=dynathiv2.duckdns.org
@@ -49,35 +40,23 @@ BRAIN_INTERVAL_MS=10000
 AUTONOMOUS_INTERVAL_MS=20000
 ```
 
-Belangrijk voor Paper servers:
+Voor Paper servers kan dit nodig zijn in `server.properties`:
 
 ```properties
 enforce-secure-profile=false
 ```
 
-Zet dit in `server.properties` als je errors krijgt zoals `missing profile public key`, `invalid signature` of `broken chain`.
-
 ---
 
 # 🎮 Prefixes
 
-## Discord
-
-Gebruik:
+Discord:
 
 ```txt
 !bot
 ```
 
-Voorbeeld:
-
-```txt
-!bot help
-```
-
-## Minecraft chat
-
-Gebruik:
+Minecraft chat:
 
 ```txt
 bot
@@ -86,12 +65,13 @@ bot
 Voorbeeld:
 
 ```txt
+!bot help
 bot help
 ```
 
 ---
 
-# 📜 Alle commands
+# 📜 Belangrijkste commands
 
 ## Basis
 
@@ -101,17 +81,7 @@ bot help
 !bot stop
 ```
 
-Minecraft chat:
-
-```txt
-bot help
-bot status
-bot stop
-```
-
----
-
-## ⛏️ Mining
+## Mining
 
 ```txt
 !bot mine stone 5
@@ -120,50 +90,20 @@ bot stop
 !bot mine dirt 10
 ```
 
-Minecraft:
-
-```txt
-bot mine stone 5
-```
-
-De bot heeft een goede tool nodig, bijvoorbeeld:
-
-```txt
-/give Dynathi diamond_pickaxe 1
-```
-
----
-
-## 🌲 Woodcutting
+## Woodcutting
 
 ```txt
 !bot chop 10
 !bot wood 10
 ```
 
-Minecraft:
-
-```txt
-bot chop 10
-```
-
----
-
-## 🎣 Fishing
+## Fishing
 
 ```txt
 !bot fish
 ```
 
-De bot heeft een fishing rod nodig:
-
-```txt
-/give Dynathi fishing_rod 1
-```
-
----
-
-## 🌾 Farming
+## Farming
 
 ```txt
 !bot farm wheat 20
@@ -171,15 +111,9 @@ De bot heeft een fishing rod nodig:
 !bot farm potato 20
 !bot farm beetroot 20
 !bot farm sugar_cane 20
-!bot farm melon 20
-!bot farm pumpkin 20
 ```
 
----
-
-## 📦 Chest en Shulker storage
-
-Zet een chest of shulker dichtbij de bot.
+## Storage
 
 ```txt
 !bot chest store
@@ -191,11 +125,7 @@ Zet een chest of shulker dichtbij de bot.
 !bot shulker take diamond 1
 ```
 
-Let op: `store` verplaatst verkoopbare/niet-beschermde items naar de chest.
-
----
-
-## 🧰 Crafting
+## Crafting
 
 ```txt
 !bot craft chest 1
@@ -205,42 +135,18 @@ Let op: `store` verplaatst verkoopbare/niet-beschermde items naar de chest.
 !bot craft shield 1
 ```
 
-Voor sommige recepten moet er een crafting table dichtbij staan.
-
----
-
-## 🏠 Building
+## Building
 
 ```txt
 !bot build floor oak_planks 5 5
 !bot build wall oak_planks 10 4
 ```
 
-De bot moet de blocks in inventory hebben:
-
-```txt
-/give Dynathi oak_planks 64
-```
-
----
-
-## 🧭 Navigation
-
-Naar coördinaten:
+## Navigation
 
 ```txt
 !bot goto 100 64 -200
-```
-
-Naar speler:
-
-```txt
 !bot follow JouwNaam
-```
-
-Stoppen:
-
-```txt
 !bot stop
 ```
 
@@ -254,17 +160,13 @@ Waypoints worden opgeslagen in:
 data/waypoints.json
 ```
 
-Ze blijven dus bewaard na een restart.
-
 ## Waypoint opslaan
-
-Ga met de bot naar de plek en typ:
 
 ```txt
 !bot waypoint set home
+!bot waypoint set warehouse
 !bot waypoint set farm
 !bot waypoint set mine
-!bot waypoint set warehouse
 !bot waypoint set fishing
 !bot waypoint set bed
 ```
@@ -285,9 +187,9 @@ bot waypoint set home
 
 ```txt
 !bot goto home
+!bot goto warehouse
 !bot goto farm
 !bot goto mine
-!bot goto warehouse
 ```
 
 Of:
@@ -312,38 +214,68 @@ farm
 mine
 fishing
 bed
-auction
-shop
 spawn
 animalfarm
+shop
+```
+
+---
+
+# 📦 WarehouseAI
+
+WarehouseAI geeft overzicht van de inventory en kan items slim opslaan.
+
+```txt
+!bot warehouse report
+!bot warehouse store
+!bot warehouse storecat wood
+!bot warehouse storecat ores
+!bot warehouse storecat food
+!bot warehouse storecat tools
+```
+
+Categorieën:
+
+```txt
+wood
+stone
+ores
+food
+tools
+farming
+valuables
+misc
+```
+
+---
+
+# 🗺️ Explorer
+
+```txt
+!bot explore
+!bot explore forest
+!bot explore cave
+!bot explore ore
+!bot explore water
+!bot explore village
+!bot explore farm
+!bot explore chest
 ```
 
 ---
 
 # 💼 Jobs
 
-## Job starten
-
 ```txt
 !bot job wood
 !bot job mine stone
 !bot job fish
 !bot job farm wheat
-```
-
-## Job status
-
-```txt
 !bot job status
-```
-
-## Job stoppen
-
-```txt
 !bot job stop
 ```
 
-Jobs kunnen automatisch acties herhalen, zoals vissen, hout hakken of minen.
+Jobs kunnen automatisch acties herhalen, zoals vissen, hout hakken, minen of farmen.
 
 ---
 
@@ -357,10 +289,106 @@ De Brain controleert basisbehoeftes zoals food, health en inventory.
 !bot brain stop
 ```
 
-Voorbeeld output:
+---
+
+# 🤖 Autonomous Mode
+
+Autonomous Mode werkt nu op DynathiSMP.
+
+Start:
 
 ```txt
-🧠 Brain: aan | 🧠 Brain: alles ziet er goed uit.
+!bot auto start
+```
+
+Status:
+
+```txt
+!bot auto status
+```
+
+Stoppen:
+
+```txt
+!bot auto stop
+```
+
+Alles stoppen:
+
+```txt
+!bot stop
+```
+
+## Wat doet Autonomous Mode?
+
+Elke ongeveer 20 seconden controleert de bot zichzelf:
+
+```txt
+🍗 Heeft de bot honger? Dan probeert hij te eten.
+📦 Is de inventory bijna vol? Dan probeert hij items in een chest op te slaan.
+⛏️ Heeft hij geen pickaxe? Dan probeert hij een stone_pickaxe te craften.
+🪓 Heeft hij geen axe? Dan probeert hij een stone_axe te craften.
+🌾 Heeft hij geen eten? Dan probeert hij wheat te farmen.
+💼 Draait er geen job? Dan start hij automatisch een wood job.
+```
+
+Voorbeeld serverlog:
+
+```txt
+🤖 DynathiAI Pro Core online. Gebruik: bot help
+🤖 Autonomous mode gestart.
+❌ Geen crafting table dichtbij gevonden.
+💼 Job gestart: wood logs
+```
+
+Deze melding is normaal:
+
+```txt
+❌ Geen crafting table dichtbij gevonden.
+```
+
+Dat betekent dat de bot probeerde een tool te craften, maar geen crafting table dichtbij vond. Zet dan een crafting table bij de bot.
+
+## Beste Autonomous setup
+
+Maak een kleine bot-basis met:
+
+```txt
+1x crafting table
+1x chest
+1x bed
+water dichtbij voor fishing
+farm dichtbij voor wheat/food
+```
+
+Geef de bot eventueel starter spullen:
+
+```txt
+/give Dynathi bread 16
+/give Dynathi stone_pickaxe 1
+/give Dynathi stone_axe 1
+/give Dynathi oak_planks 64
+/give Dynathi cobblestone 32
+/give Dynathi stick 16
+```
+
+Zet daarna deze waypoints:
+
+```txt
+!bot waypoint set home
+!bot waypoint set warehouse
+!bot waypoint set farm
+!bot waypoint set mine
+!bot waypoint set fishing
+!bot waypoint set bed
+```
+
+Start daarna:
+
+```txt
+!bot auto start
+!bot auto status
+!bot job status
 ```
 
 ---
@@ -372,8 +400,6 @@ Voorbeeld output:
 !bot status
 ```
 
-Status toont health, food en positie.
-
 ---
 
 # ⚔️ Combat
@@ -382,8 +408,6 @@ Status toont health, food en positie.
 !bot attack
 !bot guard
 ```
-
-`guard` voert een guard tick uit en valt mobs dichtbij aan.
 
 ---
 
@@ -411,7 +435,7 @@ Plaats een bed dichtbij de bot.
 !bot pay SpelerNaam 1000
 ```
 
-Belangrijk: `balance` gebruikt server command:
+`balance` gebruikt:
 
 ```txt
 /balance
@@ -427,116 +451,47 @@ De bot probeert protected items niet te verkopen, zoals tools, armor, diamonds, 
 
 ---
 
-# 🏪 AuctionAI SAFE
-
-AuctionAI is expres veilig gemaakt.
-
-De bot mag:
-
-```txt
-✅ /ah openen
-✅ items scannen
-✅ rapport maken
-✅ sluiten
-✅ handmatig held item verkopen
-```
-
-De bot mag NIET:
-
-```txt
-❌ auto buy
-❌ auto bid
-❌ auto click buy
-❌ geld uitgeven zonder opdracht
-```
-
-Module bestaat al, maar sommige auction commands kunnen nog extra gekoppeld worden als je dat wilt.
-
----
-
-# 📦 WarehouseAI
-
-WarehouseAI kan items in categorieën herkennen:
-
-```txt
-wood
-stone
-ores
-food
-tools
-farming
-valuables
-misc
-```
-
-Module bestaat al. Extra commands zoals `!bot warehouse report` kunnen later nog gekoppeld worden.
-
----
-
-# 🗺️ Explorer
-
-Explorer kan zoeken naar:
-
-```txt
-forest
-cave
-ore
-water
-village
-farm
-chest
-```
-
-Module bestaat al. Extra commands zoals `!bot explore forest` kunnen later nog gekoppeld worden.
-
----
-
-# 🤖 Autonomous Mode
-
-Autonomous Mode bestaat als module, maar moet voorzichtig gebruikt worden.
-
-Doel:
-
-```txt
-honger -> eten
-inventory vol -> chest zoeken
-geen pickaxe -> craften
-geen eten -> farmen
-geen job -> job starten
-```
-
-Extra commands zoals `!bot auto start` kunnen later nog gekoppeld worden.
-
----
-
 # 🧪 Aanbevolen testvolgorde
 
-Gebruik dit na een update:
+Na een update:
 
 ```txt
 !bot status
 !bot brain
-!bot brain start
 !bot job status
-!bot mine stone 1
-!bot chop 1
-!bot fish
 !bot waypoint set home
 !bot waypoint list
 !bot goto home
+!bot warehouse report
+!bot explore forest
+!bot auto start
+!bot auto status
+!bot job status
 ```
 
-Daarna pas testen:
+Als je wilt stoppen:
 
 ```txt
-!bot sell
-!bot chest store
-!bot build floor oak_planks 5 5
+!bot auto stop
+```
+
+Of alles tegelijk:
+
+```txt
+!bot stop
 ```
 
 ---
 
 # ⚠️ Veelvoorkomende meldingen
+
+## Geen crafting table dichtbij
+
+```txt
+❌ Geen crafting table dichtbij gevonden.
+```
+
+Plaats een crafting table dichtbij de bot.
 
 ## Geen chest dichtbij
 
@@ -574,16 +529,20 @@ Geef de bot blocks:
 
 Controleer of de bot een fishing rod heeft en stil staat.
 
-## Discord commands werken niet
-
-Controleer:
+## Autonomous controller is niet geladen
 
 ```txt
-DISCORD_TOKEN
-Message Content Intent
-Bot permissions
-Bot zit in je server
+❌ Autonomous controller is niet geladen.
 ```
+
+Doe eerst:
+
+```bash
+git pull
+npm start
+```
+
+De nieuwste versie geeft `runtime.autonomous` door aan Discord en Minecraft commands.
 
 ---
 
