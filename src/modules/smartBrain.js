@@ -43,6 +43,7 @@ function getSnapshot(bot) {
 function createCooldowns() {
   return {
     go_home_low_health: 60000,
+    go_warehouse_store: 45000,
     sleep_night: 90000,
     low_health_eat_or_stop: 20000,
     eat_food: 15000,
@@ -64,7 +65,8 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     loop: null,
     actionTimes: {},
     cooldowns: createCooldowns(),
-    homeWaypoint: process.env.SMART_HOME_WAYPOINT || "home"
+    homeWaypoint: process.env.SMART_HOME_WAYPOINT || "home",
+    warehouseWaypoint: process.env.SMART_WAREHOUSE_WAYPOINT || "warehouse"
   };
 
   function canRun(action) {
@@ -90,10 +92,24 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     return true;
   }
 
-  async function goHome(currentBot) {
+  async function goWaypoint(currentBot, waypointName) {
     if (!modules.waypoints?.goToWaypoint) return false;
-    currentBot.chat(`🏠 Ik ga naar waypoint: ${state.homeWaypoint}`);
-    return modules.waypoints.goToWaypoint(currentBot, state.homeWaypoint);
+    currentBot.chat(`📍 Ik ga naar waypoint: ${waypointName}`);
+    return modules.waypoints.goToWaypoint(currentBot, waypointName);
+  }
+
+  async function goHome(currentBot) {
+    return goWaypoint(currentBot, state.homeWaypoint);
+  }
+
+  async function goWarehouseAndStore(currentBot) {
+    if (jobManager) jobManager.stop(false);
+    await goWaypoint(currentBot, state.warehouseWaypoint);
+    await wait(1000);
+    if (modules.storage?.containerStore) {
+      await modules.storage.containerStore(currentBot, modules.storage.getChestNames(), "Chest");
+    }
+    return true;
   }
 
   async function decideAndAct() {
@@ -144,10 +160,9 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
       }
 
       if (snap.emptySlots <= 2) {
-        return runAction("store_inventory", async () => {
-          if (modules.storage?.containerStore) {
-            await modules.storage.containerStore(currentBot, modules.storage.getChestNames(), "Chest");
-          }
+        return runAction("go_warehouse_store", async () => {
+          currentBot.chat("🎒 Inventory bijna vol. Ik ga naar warehouse.");
+          await goWarehouseAndStore(currentBot);
         });
       }
 
@@ -195,7 +210,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     }, Number(process.env.SMART_INTERVAL_MS) || 15000);
 
     const currentBot = bot();
-    if (currentBot) currentBot.chat("🧠 SmartBrain V4 gestart.");
+    if (currentBot) currentBot.chat("🧠 SmartBrain V5 gestart.");
     decideAndAct().catch(() => {});
     return true;
   }
@@ -205,7 +220,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     if (state.loop) clearInterval(state.loop);
     state.loop = null;
     const currentBot = bot();
-    if (currentBot) currentBot.chat("🧠 SmartBrain V4 gestopt.");
+    if (currentBot) currentBot.chat("🧠 SmartBrain V5 gestopt.");
     return true;
   }
 
@@ -221,6 +236,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
       `Last action: ${state.lastAction}`,
       `Last skipped: ${state.lastSkipped}`,
       `Home: ${state.homeWaypoint}`,
+      `Warehouse: ${state.warehouseWaypoint}`,
       `Night: ${snap.isNight ? "ja" : "nee"}`,
       `Health: ${snap.health}`,
       `Food: ${snap.food}`,
@@ -238,6 +254,13 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     return true;
   }
 
+  function setWarehouse(name = "warehouse") {
+    state.warehouseWaypoint = name;
+    const currentBot = bot();
+    if (currentBot) currentBot.chat(`🏭 SmartBrain warehouse waypoint ingesteld op: ${name}`);
+    return true;
+  }
+
   return {
     state,
     start,
@@ -245,6 +268,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     status,
     tick: decideAndAct,
     setHome,
+    setWarehouse,
     getSnapshot
   };
 }
