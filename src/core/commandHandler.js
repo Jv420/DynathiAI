@@ -1,4 +1,4 @@
-async function handleCommand({ bot, mcData, args, modules, jobManager, brain, reply }) {
+async function handleCommand({ bot, mcData, args, modules, jobManager, brain, autonomous, reply }) {
   const command = (args[0] || "help").toLowerCase();
   const sub = (args[1] || "").toLowerCase();
 
@@ -42,8 +42,12 @@ async function handleCommand({ bot, mcData, args, modules, jobManager, brain, re
   }
 
   if (command === "auto" || command === "autonomous") {
-    reply("🤖 Auto command staat klaar, maar Autonomous controller wordt in de volgende core update volledig gekoppeld. Gebruik nu veilig: brain start + job commands.");
-    return true;
+    if (!autonomous) return reply("❌ Autonomous controller is niet geladen.");
+    if (sub === "start") return autonomous.start();
+    if (sub === "stop") return autonomous.stop();
+    if (sub === "status" || !sub) return reply(autonomous.status());
+    reply("Gebruik: auto start | auto stop | auto status");
+    return false;
   }
 
   if (command === "craft") return modules.crafting.craftQuick(bot, mcData, args[1], Number(args[2]) || 1);
@@ -74,6 +78,7 @@ async function handleCommand({ bot, mcData, args, modules, jobManager, brain, re
     modules.navigation.stopNavigation(bot);
     if (jobManager) jobManager.stop(false);
     if (brain) brain.stop();
+    if (autonomous) autonomous.stop();
     return true;
   }
 
