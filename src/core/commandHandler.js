@@ -13,7 +13,9 @@ async function handleCommand({ bot, mcData, args, modules, jobManager, brain, au
     if (sub === "stop") return smartBrain.stop();
     if (sub === "status" || !sub) return reply(smartBrain.status());
     if (sub === "tick") return smartBrain.tick();
-    reply("Gebruik: smart start | smart stop | smart status | smart tick");
+    if (sub === "home") return smartBrain.setHome(args[2] || "home");
+    if (sub === "warehouse" || sub === "wh") return smartBrain.setWarehouse(args[2] || "warehouse");
+    reply("Gebruik: smart start | smart stop | smart status | smart tick | smart home <waypoint> | smart warehouse <waypoint>");
     return false;
   }
 
