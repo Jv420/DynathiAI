@@ -42,6 +42,7 @@ function getSnapshot(bot) {
 
 function createCooldowns() {
   return {
+    go_home_low_health: 60000,
     sleep_night: 90000,
     low_health_eat_or_stop: 20000,
     eat_food: 15000,
@@ -62,7 +63,8 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     lastSkipped: "none",
     loop: null,
     actionTimes: {},
-    cooldowns: createCooldowns()
+    cooldowns: createCooldowns(),
+    homeWaypoint: process.env.SMART_HOME_WAYPOINT || "home"
   };
 
   function canRun(action) {
@@ -88,6 +90,12 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     return true;
   }
 
+  async function goHome(currentBot) {
+    if (!modules.waypoints?.goToWaypoint) return false;
+    currentBot.chat(`🏠 Ik ga naar waypoint: ${state.homeWaypoint}`);
+    return modules.waypoints.goToWaypoint(currentBot, state.homeWaypoint);
+  }
+
   async function decideAndAct() {
     const currentBot = bot();
     const currentMcData = mcData();
@@ -99,6 +107,17 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     try {
       const snap = getSnapshot(currentBot);
       if (!snap) return false;
+
+      if (snap.health <= 6) {
+        return runAction("go_home_low_health", async () => {
+          currentBot.chat("🚨 Kritieke health. Ik ga naar home als dat kan.");
+          if (jobManager) jobManager.stop(false);
+          if (autonomous) autonomous.stop();
+          if (villageBuilder) villageBuilder.stop();
+          if (modules.survival?.eatFood) await modules.survival.eatFood(currentBot);
+          await goHome(currentBot);
+        });
+      }
 
       if (snap.health <= 10) {
         return runAction("low_health_eat_or_stop", async () => {
@@ -176,7 +195,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     }, Number(process.env.SMART_INTERVAL_MS) || 15000);
 
     const currentBot = bot();
-    if (currentBot) currentBot.chat("🧠 SmartBrain V3 gestart.");
+    if (currentBot) currentBot.chat("🧠 SmartBrain V4 gestart.");
     decideAndAct().catch(() => {});
     return true;
   }
@@ -186,7 +205,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     if (state.loop) clearInterval(state.loop);
     state.loop = null;
     const currentBot = bot();
-    if (currentBot) currentBot.chat("🧠 SmartBrain V3 gestopt.");
+    if (currentBot) currentBot.chat("🧠 SmartBrain V4 gestopt.");
     return true;
   }
 
@@ -201,6 +220,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
       `Busy: ${state.busy}`,
       `Last action: ${state.lastAction}`,
       `Last skipped: ${state.lastSkipped}`,
+      `Home: ${state.homeWaypoint}`,
       `Night: ${snap.isNight ? "ja" : "nee"}`,
       `Health: ${snap.health}`,
       `Food: ${snap.food}`,
@@ -211,12 +231,20 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     ].join(" | ");
   }
 
+  function setHome(name = "home") {
+    state.homeWaypoint = name;
+    const currentBot = bot();
+    if (currentBot) currentBot.chat(`🏠 SmartBrain home waypoint ingesteld op: ${name}`);
+    return true;
+  }
+
   return {
     state,
     start,
     stop,
     status,
     tick: decideAndAct,
+    setHome,
     getSnapshot
   };
 }
