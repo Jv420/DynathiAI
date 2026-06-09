@@ -17,6 +17,7 @@ const autonomous = require("../modules/autonomous");
 const explorer = require("../modules/explorer");
 const warehouseAI = require("../modules/warehouseAI");
 const auctionAI = require("../modules/auctionAI");
+const waypoints = require("../modules/waypoints");
 
 function loadModules() {
   return {
@@ -38,7 +39,8 @@ function loadModules() {
     autonomous,
     explorer,
     warehouseAI,
-    auctionAI
+    auctionAI,
+    waypoints
   };
 }
 
