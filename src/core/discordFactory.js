@@ -41,6 +41,7 @@ function startDiscordController(runtime) {
         jobManager: runtime.jobManager,
         brain: runtime.brain,
         autonomous: runtime.autonomous,
+        villageBuilder: runtime.villageBuilder,
         reply: text => message.reply(String(text).slice(0, 1900))
       });
     } catch (err) {
