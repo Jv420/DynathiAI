@@ -40,7 +40,11 @@ async function handleCommand({ bot, mcData, args, modules, jobManager, brain, au
     if (sub === "report" || sub === "status") return reply(modules.warehouseAI.warehouseReport(bot).slice(0, 1900));
     if (sub === "store") return modules.warehouseAI.smartStore(bot, modules.storage);
     if (sub === "storecat" || sub === "category") return modules.warehouseAI.storeCategory(bot, modules.storage, args[2] || "misc");
-    reply("Gebruik: warehouse report | store | storecat <wood/stone/ores/food/tools/farming/valuables/misc>");
+    if (sub === "build") {
+      if (!modules.baseBuilder?.buildWarehouse) return reply("❌ Warehouse Builder is niet geladen.");
+      return modules.baseBuilder.buildWarehouse(bot, args[2] || "oak_planks", Number(args[3]) || 11, Number(args[4]) || 5);
+    }
+    reply("Gebruik: warehouse report | store | storecat <categorie> | build <block> <size> <height>");
     return false;
   }
 
@@ -71,6 +75,7 @@ async function handleCommand({ bot, mcData, args, modules, jobManager, brain, au
     if (sub === "starter" || sub === "small") return modules.baseBuilder.buildStarterBase(bot, args[2] || "oak_planks");
     if (sub === "hut" || sub === "house") return modules.baseBuilder.buildHut(bot, args[2] || "oak_planks", Number(args[3]) || 7, Number(args[4]) || 4);
     if (sub === "platform") return modules.baseBuilder.buildPlatform(bot, args[2] || "oak_planks", Number(args[3]) || 9, Number(args[4]) || 9);
+    if (sub === "warehouse" || sub === "storehouse") return modules.baseBuilder.buildWarehouse(bot, args[2] || "oak_planks", Number(args[3]) || 11, Number(args[4]) || 5);
     if (sub === "farm" || sub === "farmplot") return modules.baseBuilder.buildFarmPlot(bot, args[2] || "oak_planks", Number(args[3]) || 9);
     if (sub === "pen" || sub === "animalpen") return modules.baseBuilder.buildAnimalPen(bot, args[2] || "oak_fence", Number(args[3]) || 9);
     if (sub === "tower" || sub === "watchtower") return modules.baseBuilder.buildWatchtower(bot, args[2] || "oak_planks", Number(args[3]) || 8);
