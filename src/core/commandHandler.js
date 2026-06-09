@@ -3,25 +3,14 @@ async function handleCommand({ bot, mcData, args, modules, jobManager, brain, re
   const sub = (args[1] || "").toLowerCase();
 
   if (command === "help") {
-    reply("🤖 DynathiAI commands: mine, chop, fish, farm, chest, shulker, craft, build, goto, waypoint, follow, stop, attack, guard, eat, status, sleep, brain, job, balance, sell, shop, ah");
+    reply("🤖 DynathiAI commands: mine, chop, fish, farm, chest, shulker, craft, build, goto, waypoint, warehouse, explore, auto, follow, stop, attack, guard, eat, status, sleep, brain, job, balance, sell, shop, ah");
     return true;
   }
 
-  if (command === "mine") {
-    return modules.mining.mineBlock(bot, mcData, args[1] || "stone", Number(args[2]) || 1);
-  }
-
-  if (command === "chop" || command === "wood") {
-    return modules.woodcutting.chopWood(bot, mcData, Number(args[1]) || 10);
-  }
-
-  if (command === "fish") {
-    return modules.fishing.fishOnce(bot);
-  }
-
-  if (command === "farm") {
-    return modules.farming.farm(bot, mcData, args[1] || "wheat", Number(args[2]) || 20);
-  }
+  if (command === "mine") return modules.mining.mineBlock(bot, mcData, args[1] || "stone", Number(args[2]) || 1);
+  if (command === "chop" || command === "wood") return modules.woodcutting.chopWood(bot, mcData, Number(args[1]) || 10);
+  if (command === "fish") return modules.fishing.fishOnce(bot);
+  if (command === "farm") return modules.farming.farm(bot, mcData, args[1] || "wheat", Number(args[2]) || 20);
 
   if (command === "chest") {
     const names = modules.storage.getChestNames();
@@ -37,9 +26,27 @@ async function handleCommand({ bot, mcData, args, modules, jobManager, brain, re
     if (sub === "take") return modules.storage.containerTake(bot, names, "Shulker", args[2], Number(args[3]) || 64);
   }
 
-  if (command === "craft") {
-    return modules.crafting.craftQuick(bot, mcData, args[1], Number(args[2]) || 1);
+  if (command === "warehouse" || command === "wh") {
+    if (!modules.warehouseAI) return reply("❌ WarehouseAI module is niet geladen.");
+    if (sub === "report" || sub === "status") return reply(modules.warehouseAI.warehouseReport(bot).slice(0, 1900));
+    if (sub === "store") return modules.warehouseAI.smartStore(bot, modules.storage);
+    if (sub === "storecat" || sub === "category") return modules.warehouseAI.storeCategory(bot, modules.storage, args[2] || "misc");
+    reply("Gebruik: warehouse report | store | storecat <wood/stone/ores/food/tools/farming/valuables/misc>");
+    return false;
   }
+
+  if (command === "explore") {
+    if (!modules.explorer) return reply("❌ Explorer module is niet geladen.");
+    const target = sub || "random";
+    return target === "random" ? modules.explorer.exploreRandom(bot, 50) : modules.explorer.exploreFor(bot, target);
+  }
+
+  if (command === "auto" || command === "autonomous") {
+    reply("🤖 Auto command staat klaar, maar Autonomous controller wordt in de volgende core update volledig gekoppeld. Gebruik nu veilig: brain start + job commands.");
+    return true;
+  }
+
+  if (command === "craft") return modules.crafting.craftQuick(bot, mcData, args[1], Number(args[2]) || 1);
 
   if (command === "build") {
     if (sub === "floor") return modules.building.buildFloor(bot, args[2] || "oak_planks", Number(args[3]) || 3, Number(args[4]) || 3);
@@ -57,15 +64,11 @@ async function handleCommand({ bot, mcData, args, modules, jobManager, brain, re
   }
 
   if (command === "goto") {
-    if (modules.waypoints && args[1] && !args[2] && !args[3]) {
-      return modules.waypoints.goToWaypoint(bot, args[1]);
-    }
+    if (modules.waypoints && args[1] && !args[2] && !args[3]) return modules.waypoints.goToWaypoint(bot, args[1]);
     return modules.navigation.goToCoords(bot, args[1], args[2], args[3]);
   }
 
-  if (command === "follow") {
-    return modules.navigation.goToPlayer(bot, args[1] || process.env.OWNER_NAME || "", 2);
-  }
+  if (command === "follow") return modules.navigation.goToPlayer(bot, args[1] || process.env.OWNER_NAME || "", 2);
 
   if (command === "stop") {
     modules.navigation.stopNavigation(bot);
@@ -74,28 +77,11 @@ async function handleCommand({ bot, mcData, args, modules, jobManager, brain, re
     return true;
   }
 
-  if (command === "attack") {
-    return modules.combat.attackNearestMob(bot, Number(args[1]) || 6);
-  }
-
-  if (command === "guard") {
-    reply("🛡️ Guard tick uitgevoerd.");
-    return modules.combat.guardTick(bot, Number(args[1]) || 6);
-  }
-
-  if (command === "eat") {
-    return modules.survival.eatFood(bot);
-  }
-
-  if (command === "status") {
-    reply(modules.survival.healthStatus(bot));
-    return true;
-  }
-
-  if (command === "sleep") {
-    if (sub === "wake") return modules.sleep.wakeUp(bot);
-    return modules.sleep.sleepInNearestBed(bot, sub === "force");
-  }
+  if (command === "attack") return modules.combat.attackNearestMob(bot, Number(args[1]) || 6);
+  if (command === "guard") { reply("🛡️ Guard tick uitgevoerd."); return modules.combat.guardTick(bot, Number(args[1]) || 6); }
+  if (command === "eat") return modules.survival.eatFood(bot);
+  if (command === "status") { reply(modules.survival.healthStatus(bot)); return true; }
+  if (command === "sleep") { if (sub === "wake") return modules.sleep.wakeUp(bot); return modules.sleep.sleepInNearestBed(bot, sub === "force"); }
 
   if (command === "brain") {
     if (!brain) return reply("❌ Brain is niet geladen.");
