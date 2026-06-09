@@ -44,13 +44,13 @@ function createCooldowns() {
   return {
     go_home_low_health: 60000,
     go_warehouse_store: 45000,
+    go_farm_food: 45000,
+    go_lumberyard_wood: 45000,
     sleep_night: 90000,
     low_health_eat_or_stop: 20000,
     eat_food: 15000,
-    store_inventory: 30000,
     craft_pickaxe: 60000,
     craft_axe: 60000,
-    farm_food: 45000,
     start_wood_job: 30000
   };
 }
@@ -66,7 +66,10 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     actionTimes: {},
     cooldowns: createCooldowns(),
     homeWaypoint: process.env.SMART_HOME_WAYPOINT || "home",
-    warehouseWaypoint: process.env.SMART_WAREHOUSE_WAYPOINT || "warehouse"
+    warehouseWaypoint: process.env.SMART_WAREHOUSE_WAYPOINT || "warehouse",
+    farmWaypoint: process.env.SMART_FARM_WAYPOINT || "farm",
+    mineWaypoint: process.env.SMART_MINE_WAYPOINT || "mine",
+    lumberWaypoint: process.env.SMART_LUMBER_WAYPOINT || "lumberyard"
   };
 
   function canRun(action) {
@@ -109,6 +112,22 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     if (modules.storage?.containerStore) {
       await modules.storage.containerStore(currentBot, modules.storage.getChestNames(), "Chest");
     }
+    return true;
+  }
+
+  async function goFarmAndHarvest(currentBot, currentMcData) {
+    if (jobManager) jobManager.stop(false);
+    await goWaypoint(currentBot, state.farmWaypoint);
+    await wait(1000);
+    if (modules.farming?.farm) await modules.farming.farm(currentBot, currentMcData, "wheat", 20);
+    return true;
+  }
+
+  async function goLumberyardAndChop(currentBot, currentMcData) {
+    if (jobManager) jobManager.stop(false);
+    await goWaypoint(currentBot, state.lumberWaypoint);
+    await wait(1000);
+    if (modules.woodcutting?.chopWood) await modules.woodcutting.chopWood(currentBot, currentMcData, 10);
     return true;
   }
 
@@ -179,13 +198,16 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
       }
 
       if (!snap.hasFood && modules.farming?.farm) {
-        return runAction("farm_food", async () => {
-          await modules.farming.farm(currentBot, currentMcData, "wheat", 10);
+        return runAction("go_farm_food", async () => {
+          currentBot.chat("🌾 Geen eten gevonden. Ik ga naar farm waypoint.");
+          await goFarmAndHarvest(currentBot, currentMcData);
         });
       }
 
       if (jobManager && !jobManager.state.enabled) {
-        return runAction("start_wood_job", async () => {
+        return runAction("go_lumberyard_wood", async () => {
+          currentBot.chat("🌲 Geen actieve job. Ik ga naar lumberyard voor hout.");
+          await goLumberyardAndChop(currentBot, currentMcData);
           jobManager.start("wood", "logs");
         });
       }
@@ -210,7 +232,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     }, Number(process.env.SMART_INTERVAL_MS) || 15000);
 
     const currentBot = bot();
-    if (currentBot) currentBot.chat("🧠 SmartBrain V5 gestart.");
+    if (currentBot) currentBot.chat("🧠 SmartBrain V6 gestart.");
     decideAndAct().catch(() => {});
     return true;
   }
@@ -220,7 +242,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     if (state.loop) clearInterval(state.loop);
     state.loop = null;
     const currentBot = bot();
-    if (currentBot) currentBot.chat("🧠 SmartBrain V5 gestopt.");
+    if (currentBot) currentBot.chat("🧠 SmartBrain V6 gestopt.");
     return true;
   }
 
@@ -237,6 +259,9 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
       `Last skipped: ${state.lastSkipped}`,
       `Home: ${state.homeWaypoint}`,
       `Warehouse: ${state.warehouseWaypoint}`,
+      `Farm: ${state.farmWaypoint}`,
+      `Mine: ${state.mineWaypoint}`,
+      `Lumber: ${state.lumberWaypoint}`,
       `Night: ${snap.isNight ? "ja" : "nee"}`,
       `Health: ${snap.health}`,
       `Food: ${snap.food}`,
@@ -261,6 +286,27 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     return true;
   }
 
+  function setFarm(name = "farm") {
+    state.farmWaypoint = name;
+    const currentBot = bot();
+    if (currentBot) currentBot.chat(`🌾 SmartBrain farm waypoint ingesteld op: ${name}`);
+    return true;
+  }
+
+  function setMine(name = "mine") {
+    state.mineWaypoint = name;
+    const currentBot = bot();
+    if (currentBot) currentBot.chat(`⛏️ SmartBrain mine waypoint ingesteld op: ${name}`);
+    return true;
+  }
+
+  function setLumber(name = "lumberyard") {
+    state.lumberWaypoint = name;
+    const currentBot = bot();
+    if (currentBot) currentBot.chat(`🌲 SmartBrain lumber waypoint ingesteld op: ${name}`);
+    return true;
+  }
+
   return {
     state,
     start,
@@ -269,6 +315,9 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     tick: decideAndAct,
     setHome,
     setWarehouse,
+    setFarm,
+    setMine,
+    setLumber,
     getSnapshot
   };
 }
