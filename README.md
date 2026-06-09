@@ -1,89 +1,36 @@
-# 🤖 DynathiAI - Minecraft Mineflayer Bot voor DynathiSMP
+# 🤖 DynathiAI Pro Core - Minecraft AI Bot voor DynathiSMP
 
-DynathiAI is een Minecraft Java bot gemaakt met **Mineflayer**.  
-De bot kan verbinden met je Minecraft server, Discord commands ontvangen, hout hakken, minen, bouwen, mobs aanvallen, automatisch eten, automatisch verkopen via `/sell` en zelfs een simpele Worker Mode draaien.
+DynathiAI is een Minecraft Java bot gemaakt met **Mineflayer**. De bot kan verbinden met je Minecraft server, Discord commands ontvangen, jobs uitvoeren, waypoints onthouden, items verkopen, minen, hout hakken, vissen, farmen, bouwen en basis AI-acties uitvoeren.
 
-Deze README is expres **noob vriendelijk** gemaakt. Stap voor stap dus 😄
-
----
-
-## ✅ Wat kan DynathiAI?
-
-- Joinen op je Minecraft Java server
-- Werken met online-mode Microsoft login
-- Discord commands gebruiken met `!bot`
-- Minecraft chat commands gebruiken met `bot`
-- Speler volgen
-- Blocks minen
-- Hout hakken
-- Simpel bouwen
-- Inventory bekijken
-- Automatisch eten
-- Mobs aanvallen
-- Guard mode
-- Auto reconnect bij disconnect
-- Discord webhook logs sturen
-- `/sell` GUI gebruiken door items erin te plaatsen en het venster te sluiten
-- Worker Mode: hout hakken → verkopen → balance checken → herhalen
+Deze README is expres **noob vriendelijk** gemaakt. Alles staat stap voor stap uitgelegd 😄
 
 ---
 
-## ⚠️ Belangrijk om te weten
+## ✅ Starten
 
-DynathiAI is een **Java Minecraft bot**.
-
-Dat betekent:
-
-- De bot logt in als Java speler.
-- De bot heeft een echte Microsoft/Minecraft Java account nodig als je server `online-mode=true` gebruikt.
-- Bedrock spelers kunnen de bot wel commands geven als jouw server Geyser/Floodgate gebruikt.
-- De bot zelf is geen Bedrock client.
-
----
-
-## 📦 Benodigdheden
-
-Installeer eerst:
-
-1. **Node.js**  
-   Aanrader: Node.js 20 LTS  
-   Download: https://nodejs.org/
-
-2. **Een Minecraft Java account voor de bot**  
-   Bijvoorbeeld een apart Microsoft account dat Minecraft Java bezit.
-
-3. **Een Discord bot token** als je Discord commands wilt gebruiken.
-
-4. **Een Discord webhook URL** als je logs naar Discord wilt sturen.
-
----
-
-## 📁 Project downloaden
-
-Open PowerShell of CMD en typ:
-
-```bash
-git clone https://github.com/Jv420/DynathiAI.git
-cd DynathiAI
-```
-
-Installeer daarna alle packages:
+Installeer packages:
 
 ```bash
 npm install
 ```
 
----
+Start de bot:
 
-## ⚙️ .env bestand maken
-
-Maak in de projectmap een bestand genaamd:
-
-```txt
-.env
+```bash
+npm start
 ```
 
-Zet hierin:
+Of:
+
+```bash
+node bot.js
+```
+
+---
+
+## ⚙️ .env voorbeeld
+
+Maak een `.env` bestand in de projectmap:
 
 ```env
 BOT_HOST=dynathiv2.duckdns.org
@@ -97,310 +44,565 @@ OWNER_NAME=JouwMinecraftNaam
 DISCORD_TOKEN=JOUW_DISCORD_BOT_TOKEN
 DISCORD_CHANNEL_ID=JOUW_DISCORD_CHANNEL_ID
 DISCORD_WEBHOOK_URL=JOUW_DISCORD_WEBHOOK_URL
+
+BRAIN_INTERVAL_MS=10000
+AUTONOMOUS_INTERVAL_MS=20000
 ```
 
-### Uitleg
+Belangrijk voor Paper servers:
 
-| Naam | Betekenis |
-|---|---|
-| `BOT_HOST` | IP of domein van je Minecraft server |
-| `BOT_PORT` | Meestal `25565` |
-| `BOT_USERNAME` | Email van het Microsoft/Minecraft Java account van de bot |
-| `BOT_VERSION` | Minecraft versie, bijvoorbeeld `1.21.11` |
-| `AUTH` | Voor online-mode gebruik je `microsoft` |
-| `OWNER_NAME` | Jouw exacte Minecraft naam op de server |
-| `DISCORD_TOKEN` | Token van je Discord bot |
-| `DISCORD_CHANNEL_ID` | Kanaal waar `!bot` commands toegestaan zijn |
-| `DISCORD_WEBHOOK_URL` | Webhook voor logs |
+```properties
+enforce-secure-profile=false
+```
+
+Zet dit in `server.properties` als je errors krijgt zoals `missing profile public key`, `invalid signature` of `broken chain`.
 
 ---
 
-## 🟦 Bedrock / Geyser / Floodgate gebruikers
+# 🎮 Prefixes
 
-Speel je zelf via Bedrock? Dan kan dat gewoon.
+## Discord
 
-De bot blijft een Java speler, maar jij kunt via Bedrock commands typen in de Minecraft chat.
-
-Let op je naam. Bedrock spelers krijgen vaak een punt voor hun naam, bijvoorbeeld:
+Gebruik:
 
 ```txt
-.Jochem
+!bot
 ```
 
-Dan moet je in `.env` zetten:
+Voorbeeld:
 
-```env
-OWNER_NAME=.Jochem
+```txt
+!bot help
 ```
 
-Gebruik exact dezelfde naam als in de server console verschijnt.
+## Minecraft chat
 
----
+Gebruik:
 
-## ▶️ Bot starten
-
-Start de bot met:
-
-```bash
-npm start
+```txt
+bot
 ```
 
-Of:
-
-```bash
-node bot.js
-```
-
-Bij eerste Microsoft login kan Mineflayer vragen om in te loggen via een Microsoft device code.
-
----
-
-## 🎮 Minecraft commands
-
-Typ deze commands in Minecraft chat:
+Voorbeeld:
 
 ```txt
 bot help
-bot follow
-bot stop
-bot mine dirt 5
-bot mine stone 10
-bot chop 10
-bot build dirt
-bot inv
-bot eat
-bot attack
-bot guard
-bot sell
-bot worker start
-bot worker stop
-bot worker status
-bot spawn
-bot home
-bot sethome bot
-bot bal
 ```
 
 ---
 
-## 💬 Discord commands
+# 📜 Alle commands
 
-Typ deze commands in het ingestelde Discord kanaal:
+## Basis
 
 ```txt
 !bot help
 !bot status
-!bot say Hallo DynathiSMP!
-!bot follow
 !bot stop
-!bot mine dirt 5
-!bot mine stone 10
+```
+
+Minecraft chat:
+
+```txt
+bot help
+bot status
+bot stop
+```
+
+---
+
+## ⛏️ Mining
+
+```txt
+!bot mine stone 5
+!bot mine coal_ore 3
+!bot mine iron_ore 3
+!bot mine dirt 10
+```
+
+Minecraft:
+
+```txt
+bot mine stone 5
+```
+
+De bot heeft een goede tool nodig, bijvoorbeeld:
+
+```txt
+/give Dynathi diamond_pickaxe 1
+```
+
+---
+
+## 🌲 Woodcutting
+
+```txt
 !bot chop 10
-!bot build dirt
-!bot inv
-!bot eat
-!bot attack
-!bot guard
-!bot sell
-!bot worker start
-!bot worker stop
-!bot worker status
-!bot spawn
+!bot wood 10
+```
+
+Minecraft:
+
+```txt
+bot chop 10
 ```
 
 ---
 
-## 💰 AutoSell uitleg
+## 🎣 Fishing
 
-DynathiAI gebruikt jouw `/sell` GUI zo:
+```txt
+!bot fish
+```
 
-1. De bot doet `/sell`.
-2. De sell GUI opent.
-3. De bot zet verkoopbare items in de bovenste vakken.
-4. De bot sluit de GUI.
-5. De verkoop start automatisch.
+De bot heeft een fishing rod nodig:
 
-De bot probeert belangrijke spullen te bewaren, zoals:
-
-- Pickaxes
-- Axes
-- Shovels
-- Swords
-- Bows
-- Armor
-- Diamonds
-- Netherite
-- Emeralds
+```txt
+/give Dynathi fishing_rod 1
+```
 
 ---
 
-## 💼 Worker Mode uitleg
-
-Worker Mode laat de bot automatisch geld verdienen.
-
-Start:
+## 🌾 Farming
 
 ```txt
-!bot worker start
+!bot farm wheat 20
+!bot farm carrot 20
+!bot farm potato 20
+!bot farm beetroot 20
+!bot farm sugar_cane 20
+!bot farm melon 20
+!bot farm pumpkin 20
 ```
 
-Of in Minecraft:
+---
+
+## 📦 Chest en Shulker storage
+
+Zet een chest of shulker dichtbij de bot.
 
 ```txt
-bot worker start
+!bot chest store
+!bot chest dump
+!bot chest take oak_log 64
+
+!bot shulker store
+!bot shulker dump
+!bot shulker take diamond 1
 ```
 
-De bot doet dan:
+Let op: `store` verplaatst verkoopbare/niet-beschermde items naar de chest.
+
+---
+
+## 🧰 Crafting
 
 ```txt
-1. Hout zoeken
-2. Hout hakken
-3. Items verkopen via /sell
-4. /balance checken
-5. Na ongeveer 90 seconden opnieuw beginnen
+!bot craft chest 1
+!bot craft furnace 1
+!bot craft stone_pickaxe 1
+!bot craft stone_axe 1
+!bot craft shield 1
+```
+
+Voor sommige recepten moet er een crafting table dichtbij staan.
+
+---
+
+## 🏠 Building
+
+```txt
+!bot build floor oak_planks 5 5
+!bot build wall oak_planks 10 4
+```
+
+De bot moet de blocks in inventory hebben:
+
+```txt
+/give Dynathi oak_planks 64
+```
+
+---
+
+## 🧭 Navigation
+
+Naar coördinaten:
+
+```txt
+!bot goto 100 64 -200
+```
+
+Naar speler:
+
+```txt
+!bot follow JouwNaam
 ```
 
 Stoppen:
 
 ```txt
-!bot worker stop
-```
-
-Status:
-
-```txt
-!bot worker status
+!bot stop
 ```
 
 ---
 
-## ⛏️ Stone minen werkt niet?
+# 📍 Waypoints
 
-Voor stone heeft de bot een pickaxe nodig.
-
-Geef de bot bijvoorbeeld:
+Waypoints worden opgeslagen in:
 
 ```txt
-/give DynathiAI stone_pickaxe
+data/waypoints.json
+```
+
+Ze blijven dus bewaard na een restart.
+
+## Waypoint opslaan
+
+Ga met de bot naar de plek en typ:
+
+```txt
+!bot waypoint set home
+!bot waypoint set farm
+!bot waypoint set mine
+!bot waypoint set warehouse
+!bot waypoint set fishing
+!bot waypoint set bed
+```
+
+Minecraft chat:
+
+```txt
+bot waypoint set home
+```
+
+## Waypoints bekijken
+
+```txt
+!bot waypoint list
+```
+
+## Naar waypoint lopen
+
+```txt
+!bot goto home
+!bot goto farm
+!bot goto mine
+!bot goto warehouse
 ```
 
 Of:
 
 ```txt
-/give DynathiAI diamond_pickaxe
+!bot waypoint goto home
 ```
 
-Daarna:
+## Waypoint verwijderen
 
 ```txt
-!bot mine stone 10
+!bot waypoint remove mine
+!bot waypoint delete mine
+```
+
+Aanbevolen waypoints voor DynathiSMP:
+
+```txt
+home
+warehouse
+farm
+mine
+fishing
+bed
+auction
+shop
+spawn
+animalfarm
 ```
 
 ---
 
-## ❌ Veelvoorkomende fouten
+# 💼 Jobs
 
-### Failed to obtain profile data
-
-Fout:
+## Job starten
 
 ```txt
-Failed to obtain profile data, does the account own minecraft?
+!bot job wood
+!bot job mine stone
+!bot job fish
+!bot job farm wheat
 ```
 
-Oplossing:
+## Job status
 
-- Controleer of het Microsoft account Minecraft Java bezit.
-- Log met dat account in op de officiële Minecraft Launcher.
-- Start Minecraft Java één keer handmatig.
-- Gebruik daarna hetzelfde account in `.env`.
+```txt
+!bot job status
+```
+
+## Job stoppen
+
+```txt
+!bot job stop
+```
+
+Jobs kunnen automatisch acties herhalen, zoals vissen, hout hakken of minen.
 
 ---
 
-### Alleen mijn eigenaar mag mij commands geven
+# 🧠 AI Brain
 
-Dan klopt `OWNER_NAME` niet.
-
-Controleer exact hoe je naam in de server verschijnt.
-
-Voor Bedrock kan dit bijvoorbeeld zijn:
+De Brain controleert basisbehoeftes zoals food, health en inventory.
 
 ```txt
-.JouwNaam
+!bot brain
+!bot brain start
+!bot brain stop
 ```
 
-Dan moet je `.env` ook zo zijn:
+Voorbeeld output:
 
-```env
-OWNER_NAME=.JouwNaam
+```txt
+🧠 Brain: aan | 🧠 Brain: alles ziet er goed uit.
 ```
 
 ---
 
-### Discord commands werken niet
+# 🍗 Survival
+
+```txt
+!bot eat
+!bot status
+```
+
+Status toont health, food en positie.
+
+---
+
+# ⚔️ Combat
+
+```txt
+!bot attack
+!bot guard
+```
+
+`guard` voert een guard tick uit en valt mobs dichtbij aan.
+
+---
+
+# 🛏️ Sleep
+
+Plaats een bed dichtbij de bot.
+
+```txt
+!bot sleep
+!bot sleep force
+!bot sleep wake
+```
+
+---
+
+# 💰 Economy
+
+```txt
+!bot balance
+!bot bal
+!bot sell
+!bot sellall
+!bot shop
+!bot ah
+!bot pay SpelerNaam 1000
+```
+
+Belangrijk: `balance` gebruikt server command:
+
+```txt
+/balance
+```
+
+AutoSell gebruikt:
+
+```txt
+/sell
+```
+
+De bot probeert protected items niet te verkopen, zoals tools, armor, diamonds, emeralds, netherite en fishing rods.
+
+---
+
+# 🏪 AuctionAI SAFE
+
+AuctionAI is expres veilig gemaakt.
+
+De bot mag:
+
+```txt
+✅ /ah openen
+✅ items scannen
+✅ rapport maken
+✅ sluiten
+✅ handmatig held item verkopen
+```
+
+De bot mag NIET:
+
+```txt
+❌ auto buy
+❌ auto bid
+❌ auto click buy
+❌ geld uitgeven zonder opdracht
+```
+
+Module bestaat al, maar sommige auction commands kunnen nog extra gekoppeld worden als je dat wilt.
+
+---
+
+# 📦 WarehouseAI
+
+WarehouseAI kan items in categorieën herkennen:
+
+```txt
+wood
+stone
+ores
+food
+tools
+farming
+valuables
+misc
+```
+
+Module bestaat al. Extra commands zoals `!bot warehouse report` kunnen later nog gekoppeld worden.
+
+---
+
+# 🗺️ Explorer
+
+Explorer kan zoeken naar:
+
+```txt
+forest
+cave
+ore
+water
+village
+farm
+chest
+```
+
+Module bestaat al. Extra commands zoals `!bot explore forest` kunnen later nog gekoppeld worden.
+
+---
+
+# 🤖 Autonomous Mode
+
+Autonomous Mode bestaat als module, maar moet voorzichtig gebruikt worden.
+
+Doel:
+
+```txt
+honger -> eten
+inventory vol -> chest zoeken
+geen pickaxe -> craften
+geen eten -> farmen
+geen job -> job starten
+```
+
+Extra commands zoals `!bot auto start` kunnen later nog gekoppeld worden.
+
+---
+
+# 🧪 Aanbevolen testvolgorde
+
+Gebruik dit na een update:
+
+```txt
+!bot status
+!bot brain
+!bot brain start
+!bot job status
+!bot mine stone 1
+!bot chop 1
+!bot fish
+!bot waypoint set home
+!bot waypoint list
+!bot goto home
+```
+
+Daarna pas testen:
+
+```txt
+!bot sell
+!bot chest store
+!bot build floor oak_planks 5 5
+```
+
+---
+
+# ⚠️ Veelvoorkomende meldingen
+
+## Geen chest dichtbij
+
+```txt
+❌ Geen Chest dichtbij gevonden.
+```
+
+Plaats een chest binnen ongeveer 5 blokken van de bot.
+
+## Geen bed dichtbij
+
+```txt
+❌ Geen bed dichtbij gevonden.
+```
+
+Plaats een bed dichtbij de bot.
+
+## Geen oak_planks
+
+```txt
+🏠 Ik heb geen oak_planks in mijn inventory.
+```
+
+Geef de bot blocks:
+
+```txt
+/give Dynathi oak_planks 64
+```
+
+## Fishing cancelled
+
+```txt
+❌ Vissen mislukt: Fishing cancelled
+```
+
+Controleer of de bot een fishing rod heeft en stil staat.
+
+## Discord commands werken niet
 
 Controleer:
 
-- Staat `DISCORD_TOKEN` goed?
-- Heeft je bot de juiste intents aan in Discord Developer Portal?
-- Staat `Message Content Intent` aan?
-- Klopt `DISCORD_CHANNEL_ID`?
-- Zit de Discord bot in je server?
+```txt
+DISCORD_TOKEN
+Message Content Intent
+Bot permissions
+Bot zit in je server
+```
 
 ---
 
-## 🧱 Naar .exe maken
+# 🔐 Veiligheid
 
-Wil je van de bot een Windows `.exe` maken?
+Zet nooit openbaar online:
 
-Gebruik liever Node.js 20 LTS.
-
-Installeer pkg:
-
-```bash
-npm install -g pkg
+```txt
+Discord bot token
+Discord webhook URL
+Microsoft wachtwoord
+private keys
 ```
-
-Maak de exe:
-
-```bash
-pkg bot.js --targets node18-win-x64 --output DynathiAI.exe
-```
-
-Let op: houd je `.env` bestand naast de `.exe`, want daar staan je instellingen in.
-
----
-
-## 🔐 Veiligheid
-
-Zet nooit deze dingen openbaar online:
-
-- Discord bot token
-- Discord webhook URL
-- Microsoft wachtwoord
-- Private keys
 
 Gebruik altijd `.env` voor geheime gegevens.
 
 ---
 
-## 🚀 Toekomstige ideeën
-
-Mogelijke upgrades:
-
-- Worker Mode V2 met mining mode
-- Auto quarry miner
-- Auto farm
-- Auto chest storage
-- Auction House trader
-- Shop GUI automation
-- AI chat met Ollama of OpenAI API
-- Zelf huisjes bouwen
-- Meerdere bots tegelijk
-
----
-
-## ❤️ Credits
+# ❤️ Credits
 
 Gemaakt voor **DynathiSMP** door Jv420 / DynathiAI.
 
