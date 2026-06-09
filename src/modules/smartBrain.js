@@ -39,14 +39,52 @@ function getSnapshot(bot) {
   };
 }
 
+function createCooldowns() {
+  return {
+    low_health_eat_or_stop: 20000,
+    eat_food: 15000,
+    store_inventory: 30000,
+    craft_pickaxe: 60000,
+    craft_axe: 60000,
+    farm_food: 45000,
+    start_wood_job: 30000
+  };
+}
+
 function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villageBuilder, log }) {
   const state = {
     enabled: false,
     busy: false,
     cycles: 0,
     lastAction: "idle",
-    loop: null
+    lastSkipped: "none",
+    loop: null,
+    actionTimes: {},
+    cooldowns: createCooldowns()
   };
+
+  function canRun(action) {
+    const cooldown = state.cooldowns[action] || 0;
+    const last = state.actionTimes[action] || 0;
+    return Date.now() - last >= cooldown;
+  }
+
+  function mark(action) {
+    state.actionTimes[action] = Date.now();
+    state.lastAction = action;
+  }
+
+  function skip(action) {
+    state.lastSkipped = action;
+    return false;
+  }
+
+  async function runAction(action, fn) {
+    if (!canRun(action)) return skip(`${action}_cooldown`);
+    mark(action);
+    await fn();
+    return true;
+  }
 
   async function decideAndAct() {
     const currentBot = bot();
@@ -61,54 +99,55 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
       if (!snap) return false;
 
       if (snap.health <= 10) {
-        state.lastAction = "low_health_eat_or_stop";
-        currentBot.chat("🧠 Lage health gedetecteerd. Ik speel veilig.");
-        if (jobManager) jobManager.stop(false);
-        if (autonomous) autonomous.stop();
-        if (villageBuilder) villageBuilder.stop();
-        if (modules.survival?.eatFood) await modules.survival.eatFood(currentBot);
-        return true;
+        return runAction("low_health_eat_or_stop", async () => {
+          currentBot.chat("🧠 Lage health gedetecteerd. Ik speel veilig.");
+          if (jobManager) jobManager.stop(false);
+          if (autonomous) autonomous.stop();
+          if (villageBuilder) villageBuilder.stop();
+          if (modules.survival?.eatFood) await modules.survival.eatFood(currentBot);
+        });
       }
 
       if (snap.food <= 12) {
-        state.lastAction = "eat_food";
-        if (modules.survival?.eatFood) await modules.survival.eatFood(currentBot);
-        return true;
+        return runAction("eat_food", async () => {
+          if (modules.survival?.eatFood) await modules.survival.eatFood(currentBot);
+        });
       }
 
       if (snap.emptySlots <= 2) {
-        state.lastAction = "store_inventory";
-        if (modules.storage?.containerStore) {
-          await modules.storage.containerStore(currentBot, modules.storage.getChestNames(), "Chest");
-        }
-        return true;
+        return runAction("store_inventory", async () => {
+          if (modules.storage?.containerStore) {
+            await modules.storage.containerStore(currentBot, modules.storage.getChestNames(), "Chest");
+          }
+        });
       }
 
       if (!snap.hasPickaxe && modules.crafting?.craftQuick) {
-        state.lastAction = "craft_pickaxe";
-        await modules.crafting.craftQuick(currentBot, currentMcData, "stone_pickaxe", 1);
-        return true;
+        return runAction("craft_pickaxe", async () => {
+          await modules.crafting.craftQuick(currentBot, currentMcData, "stone_pickaxe", 1);
+        });
       }
 
       if (!snap.hasAxe && modules.crafting?.craftQuick) {
-        state.lastAction = "craft_axe";
-        await modules.crafting.craftQuick(currentBot, currentMcData, "stone_axe", 1);
-        return true;
+        return runAction("craft_axe", async () => {
+          await modules.crafting.craftQuick(currentBot, currentMcData, "stone_axe", 1);
+        });
       }
 
       if (!snap.hasFood && modules.farming?.farm) {
-        state.lastAction = "farm_food";
-        await modules.farming.farm(currentBot, currentMcData, "wheat", 10);
-        return true;
+        return runAction("farm_food", async () => {
+          await modules.farming.farm(currentBot, currentMcData, "wheat", 10);
+        });
       }
 
       if (jobManager && !jobManager.state.enabled) {
-        state.lastAction = "start_wood_job";
-        jobManager.start("wood", "logs");
-        return true;
+        return runAction("start_wood_job", async () => {
+          jobManager.start("wood", "logs");
+        });
       }
 
       state.lastAction = "idle_ok";
+      state.lastSkipped = "none";
       return true;
     } catch (err) {
       state.lastAction = `error: ${err.message}`;
@@ -151,6 +190,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
       `Cycles: ${state.cycles}`,
       `Busy: ${state.busy}`,
       `Last action: ${state.lastAction}`,
+      `Last skipped: ${state.lastSkipped}`,
       `Health: ${snap.health}`,
       `Food: ${snap.food}`,
       `Empty slots: ${snap.emptySlots}`,
