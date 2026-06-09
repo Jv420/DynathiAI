@@ -1,6 +1,6 @@
 # 🤖 DynathiAI Pro Core - Minecraft AI Bot voor DynathiSMP
 
-DynathiAI is een Minecraft Java bot gemaakt met **Mineflayer**. De bot kan verbinden met je Minecraft server, Discord commands ontvangen, jobs uitvoeren, waypoints onthouden, items verkopen, minen, hout hakken, vissen, farmen, bouwen, bases maken en Autonomous Mode draaien.
+DynathiAI is een Minecraft Java bot gemaakt met **Mineflayer**. De bot kan verbinden met je Minecraft server, Discord commands ontvangen, jobs uitvoeren, waypoints onthouden, items verkopen, minen, hout hakken, vissen, farmen, bouwen, bases maken, dorpen bouwen en Autonomous Mode draaien.
 
 Deze README is expres **noob vriendelijk** gemaakt. Alles staat stap voor stap uitgelegd 😄
 
@@ -17,6 +17,13 @@ Of:
 
 ```bash
 node bot.js
+```
+
+Na elke GitHub update:
+
+```bash
+git pull
+npm start
 ```
 
 ---
@@ -135,13 +142,6 @@ bot help
 !bot craft shield 1
 ```
 
-## Building
-
-```txt
-!bot build floor oak_planks 5 5
-!bot build wall oak_planks 10 4
-```
-
 ## Navigation
 
 ```txt
@@ -152,91 +152,165 @@ bot help
 
 ---
 
-# 🏠 BaseBuilder V1
+# 🏠 BaseBuilder V2
 
-BaseBuilder kan simpele starter bases maken.
+BaseBuilder kan losse gebouwen en simpele structuren maken.
 
-## Starter base bouwen
+## Starter base
 
 ```txt
 !bot base starter oak_planks
 ```
 
-Dit bouwt een kleine starter hut met:
-
-```txt
-vloer
-muren
-deur opening
-raam openingen
-dak
-```
-
-## Hut bouwen
+## Hut / house
 
 ```txt
 !bot base hut oak_planks
-```
-
-Grotere hut:
-
-```txt
 !bot base hut oak_planks 9 5
 ```
 
-Betekenis:
-
-```txt
-9 = breedte/lengte
-5 = hoogte
-```
-
-## Platform bouwen
+## Platform
 
 ```txt
 !bot base platform oak_planks 9 9
+!bot base platform cobblestone 15 15
 ```
 
-Groter platform:
+## Farm plot
 
 ```txt
-!bot base platform cobblestone 15 15
+!bot base farm oak_planks 11
+```
+
+## Animal pen
+
+```txt
+!bot base pen oak_fence 11
+```
+
+## Watchtower
+
+```txt
+!bot base tower oak_planks 10
 ```
 
 ## Eerste base test
 
-Geef de bot materiaal:
-
 ```txt
 /give Dynathi oak_planks 512
-```
+/give Dynathi oak_fence 256
 
-Zet een base waypoint:
-
-```txt
 !bot waypoint set base
-```
-
-Laat de bot naar base lopen:
-
-```txt
 !bot goto base
+!bot base platform oak_planks 9 9
+!bot base starter oak_planks
 ```
 
-Start de bouw:
+Let op: BaseBuilder V2 is nog simpel. Hij werkt het beste op vlakke grond met genoeg ruimte.
+
+---
+
+# 🏘️ VillageBuilder V1
+
+VillageBuilder bouwt automatisch een klein dorp rond de plek waar de bot staat.
+
+## Start dorp bouwen
 
 ```txt
-!bot base starter oak_planks
+!bot village start oak_planks
+```
+
+Of met cobblestone:
+
+```txt
+!bot village start cobblestone
+```
+
+## Status bekijken
+
+```txt
+!bot village status
+```
+
+Voorbeeld:
+
+```txt
+🏘️ VillageBuilder: aan | Step: farm_plot | Busy: true
+```
+
+## Stoppen
+
+```txt
+!bot village stop
+```
+
+Of alles stoppen:
+
+```txt
+!bot stop
+```
+
+## Wat bouwt VillageBuilder?
+
+```txt
+🏘️ Town Square / centraal plein
+🏠 Starter House
+🌾 Farm Plot
+🐄 Animal Pen
+🗼 Watchtower
+```
+
+Layout ongeveer:
+
+```txt
+        🗼
+
+🌾  🏘️  🏠
+
+      🐄
+```
+
+## Eerste VillageBuilder test
+
+Geef Dynathi genoeg materiaal:
+
+```txt
+/give Dynathi oak_planks 1024
+/give Dynathi oak_fence 512
+```
+
+Ga naar een groot vlak gebied en zet waypoint:
+
+```txt
+!bot waypoint set village
+!bot goto village
+```
+
+Start dan:
+
+```txt
+!bot village start oak_planks
+```
+
+Controleer status:
+
+```txt
+!bot village status
 ```
 
 Verwachte output:
 
 ```txt
-🏠 Starter hut bouwen: 7x7x4 met oak_planks
-✅ Starter hut klaar. Blocks geplaatst: ...
+🏘️ VillageBuilder gestart met oak_planks
+🏗️ Platform bouwen: 15x15 met oak_planks
+🏠 Starter hut bouwen
+🌾 Farm plot bouwen
+🐄 Animal pen bouwen
+🗼 Watchtower bouwen
+✅ VillageBuilder klaar
 ```
 
-Let op: BaseBuilder V1 is simpel. Hij heeft vlakke grond en genoeg blocks nodig.
+Belangrijk: gebruik eerst een vlak leeg terrein. VillageBuilder V1 gebruikt vaste afstanden rond het startpunt.
 
 ---
 
@@ -253,6 +327,7 @@ data/waypoints.json
 ```txt
 !bot waypoint set home
 !bot waypoint set base
+!bot waypoint set village
 !bot waypoint set warehouse
 !bot waypoint set farm
 !bot waypoint set mine
@@ -277,6 +352,7 @@ bot waypoint set home
 ```txt
 !bot goto home
 !bot goto base
+!bot goto village
 !bot goto warehouse
 !bot goto farm
 !bot goto mine
@@ -300,6 +376,7 @@ Aanbevolen waypoints voor DynathiSMP:
 ```txt
 home
 base
+village
 warehouse
 farm
 mine
@@ -372,8 +449,6 @@ Jobs kunnen automatisch acties herhalen, zoals vissen, hout hakken, minen of far
 
 # 🧠 AI Brain
 
-De Brain controleert basisbehoeftes zoals food, health en inventory.
-
 ```txt
 !bot brain
 !bot brain start
@@ -384,23 +459,9 @@ De Brain controleert basisbehoeftes zoals food, health en inventory.
 
 # 🤖 Autonomous Mode
 
-Autonomous Mode werkt nu op DynathiSMP.
-
-Start:
-
 ```txt
 !bot auto start
-```
-
-Status:
-
-```txt
 !bot auto status
-```
-
-Stoppen:
-
-```txt
 !bot auto stop
 ```
 
@@ -423,26 +484,7 @@ Elke ongeveer 20 seconden controleert de bot zichzelf:
 💼 Draait er geen job? Dan start hij automatisch een wood job.
 ```
 
-Voorbeeld serverlog:
-
-```txt
-🤖 DynathiAI Pro Core online. Gebruik: bot help
-🤖 Autonomous mode gestart.
-❌ Geen crafting table dichtbij gevonden.
-💼 Job gestart: wood logs
-```
-
-Deze melding is normaal:
-
-```txt
-❌ Geen crafting table dichtbij gevonden.
-```
-
-Dat betekent dat de bot probeerde een tool te craften, maar geen crafting table dichtbij vond. Zet dan een crafting table bij de bot.
-
-## Beste Autonomous setup
-
-Maak een kleine bot-basis met:
+Beste Autonomous setup:
 
 ```txt
 1x crafting table
@@ -452,7 +494,7 @@ water dichtbij voor fishing
 farm dichtbij voor wheat/food
 ```
 
-Geef de bot eventueel starter spullen:
+Starter spullen:
 
 ```txt
 /give Dynathi bread 16
@@ -461,25 +503,6 @@ Geef de bot eventueel starter spullen:
 /give Dynathi oak_planks 64
 /give Dynathi cobblestone 32
 /give Dynathi stick 16
-```
-
-Zet daarna deze waypoints:
-
-```txt
-!bot waypoint set home
-!bot waypoint set warehouse
-!bot waypoint set farm
-!bot waypoint set mine
-!bot waypoint set fishing
-!bot waypoint set bed
-```
-
-Start daarna:
-
-```txt
-!bot auto start
-!bot auto status
-!bot job status
 ```
 
 ---
@@ -555,6 +578,9 @@ Na een update:
 !bot goto base
 !bot base platform oak_planks 9 9
 !bot base starter oak_planks
+!bot waypoint set village
+!bot village start oak_planks
+!bot village status
 !bot warehouse report
 !bot explore forest
 !bot auto start
@@ -566,6 +592,7 @@ Als je wilt stoppen:
 
 ```txt
 !bot auto stop
+!bot village stop
 ```
 
 Of alles tegelijk:
@@ -611,26 +638,24 @@ Plaats een bed dichtbij de bot.
 Geef de bot blocks:
 
 ```txt
-/give Dynathi oak_planks 64
-```
-
-## Te weinig blocks voor BaseBuilder
-
-```txt
-🏠 Te weinig oak_planks. Nodig: ..., beschikbaar: ...
-```
-
-Geef de bot meer blocks:
-
-```txt
 /give Dynathi oak_planks 512
 ```
 
-## BaseBuilder plaatst weinig of geen blocks
+## Geen oak_fence
 
-BaseBuilder V1 heeft vlakke grond nodig. Test eerst op een vlak stuk gras of stone.
+```txt
+🐄 Animal pen bouwen: 11x11 met oak_fence
+```
 
-Gebruik:
+Als er weinig of geen fence wordt geplaatst:
+
+```txt
+/give Dynathi oak_fence 512
+```
+
+## BaseBuilder of VillageBuilder plaatst weinig blocks
+
+Gebruik vlakke grond en genoeg ruimte. Test eerst:
 
 ```txt
 !bot base platform oak_planks 9 9
@@ -640,6 +665,12 @@ Als dat werkt, test daarna:
 
 ```txt
 !bot base starter oak_planks
+```
+
+Daarna pas:
+
+```txt
+!bot village start oak_planks
 ```
 
 ## Fishing cancelled
@@ -663,7 +694,20 @@ git pull
 npm start
 ```
 
-De nieuwste versie geeft `runtime.autonomous` door aan Discord en Minecraft commands.
+## VillageBuilder controller is niet geladen
+
+```txt
+❌ VillageBuilder controller is niet geladen.
+```
+
+Doe eerst:
+
+```bash
+git pull
+npm start
+```
+
+De nieuwste versie geeft `runtime.villageBuilder` door aan Discord en Minecraft commands.
 
 ---
 
