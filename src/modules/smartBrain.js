@@ -72,6 +72,7 @@ function createCooldowns() {
     colony_build: 180000,
     expansion_build: 240000,
     project_plan: 60000,
+    role_switch: 30000,
     sleep_night: 90000,
     low_health_eat_or_stop: 20000,
     eat_food: 15000,
@@ -89,6 +90,8 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     lastSkipped: "none",
     loop: null,
     actionTimes: {},
+    role: "Idle",
+    task: "Wachten",
     cooldowns: createCooldowns(),
     minimums: {
       food: Number(process.env.SMART_MIN_FOOD) || 16,
@@ -120,6 +123,12 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     mineWaypoint: process.env.SMART_MINE_WAYPOINT || "mine",
     lumberWaypoint: process.env.SMART_LUMBER_WAYPOINT || "lumberyard"
   };
+
+  function setRole(role, task) {
+    state.role = role;
+    state.task = task;
+    state.lastAction = `${role}: ${task}`;
+  }
 
   function canRun(action) {
     const cooldown = state.cooldowns[action] || 0;
@@ -189,6 +198,21 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     return state.project;
   }
 
+  function chooseRole(snap) {
+    const project = updateProject(snap);
+
+    if (snap.health <= 10) return setRole("Survivor", "Veiligheid en eten");
+    if (snap.emptySlots <= 2) return setRole("Warehouse Manager", "Inventory opslaan");
+    if (snap.isNight) return setRole("Sleeper", "Bed zoeken");
+    if (snap.foodCount < state.minimums.food || snap.food <= 12) return setRole("Farmer", "Voedsel regelen");
+    if (!snap.hasPickaxe || !snap.hasAxe) return setRole("Crafter", "Tools maken");
+    if (snap.stoneCount < state.minimums.stone) return setRole("Miner", "Steen verzamelen");
+    if (project.status === "ready_to_build") return setRole("Builder", `Project bouwen: ${project.active}`);
+    if (project.status === "collecting_planks" || project.status === "collecting_materials") return setRole("Lumberjack", `Materialen voor ${project.active}`);
+    if (snap.logCount < state.minimums.logs) return setRole("Lumberjack", "Houtvoorraad aanvullen");
+    return setRole("Colonist", "Onderhoud en wachten");
+  }
+
   async function goWaypoint(currentBot, waypointName) {
     if (!modules.waypoints?.goToWaypoint) return false;
     currentBot.chat(`📍 Ik ga naar waypoint: ${waypointName}`);
@@ -201,6 +225,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
 
   async function goWarehouseAndStore(currentBot) {
     if (jobManager) jobManager.stop(false);
+    setRole("Warehouse Manager", "Opslaan in warehouse");
     await goWaypoint(currentBot, state.warehouseWaypoint);
     await wait(1000);
     if (modules.storage?.containerStore) {
@@ -211,6 +236,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
 
   async function goFarmAndHarvest(currentBot, currentMcData) {
     if (jobManager) jobManager.stop(false);
+    setRole("Farmer", "Farmen bij farm waypoint");
     await goWaypoint(currentBot, state.farmWaypoint);
     await wait(1000);
     if (modules.farming?.farm) await modules.farming.farm(currentBot, currentMcData, "wheat", 20);
@@ -219,6 +245,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
 
   async function goMineAndCollect(currentBot, currentMcData) {
     if (jobManager) jobManager.stop(false);
+    setRole("Miner", "Steen verzamelen");
     await goWaypoint(currentBot, state.mineWaypoint);
     await wait(1000);
     if (modules.mining?.mineBlock) await modules.mining.mineBlock(currentBot, currentMcData, "stone", 12);
@@ -227,6 +254,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
 
   async function goLumberyardAndChop(currentBot, currentMcData) {
     if (jobManager) jobManager.stop(false);
+    setRole("Lumberjack", "Hout verzamelen");
     await goWaypoint(currentBot, state.lumberWaypoint);
     await wait(1000);
     if (modules.woodcutting?.chopWood) await modules.woodcutting.chopWood(currentBot, currentMcData, 10);
@@ -243,32 +271,33 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
 
     return runAction("colony_build", async () => {
       if (jobManager) jobManager.stop(false);
+      setRole("Builder", `Bouwen: ${state.project.active}`);
       await goHome(currentBot);
       await wait(1000);
 
       if (!state.colony.starterBuilt) {
-        currentBot.chat("🏘️ Project Planner: starter base bouwen.");
+        currentBot.chat("🏘️ Autonome kolonist: starter base bouwen.");
         await modules.baseBuilder.buildStarterBase(currentBot, "oak_planks");
         state.colony.starterBuilt = true;
         return;
       }
 
       if (!state.colony.farmBuilt) {
-        currentBot.chat("🏘️ Project Planner: farm plot bouwen.");
+        currentBot.chat("🏘️ Autonome kolonist: farm plot bouwen.");
         await modules.baseBuilder.buildFarmPlot(currentBot, "oak_planks", 9);
         state.colony.farmBuilt = true;
         return;
       }
 
       if (!state.colony.warehouseBuilt && snap.plankCount >= 160) {
-        currentBot.chat("🏘️ Project Planner: warehouse bouwen.");
+        currentBot.chat("🏘️ Autonome kolonist: warehouse bouwen.");
         await modules.baseBuilder.buildWarehouse(currentBot, "oak_planks", 11, 5);
         state.colony.warehouseBuilt = true;
         return;
       }
 
       if (!state.colony.towerBuilt && snap.plankCount >= 120) {
-        currentBot.chat("🏘️ Project Planner: watchtower bouwen.");
+        currentBot.chat("🏘️ Autonome kolonist: watchtower bouwen.");
         await modules.baseBuilder.buildWatchtower(currentBot, "oak_planks", 8);
         state.colony.towerBuilt = true;
       }
@@ -281,25 +310,26 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
 
     return runAction("expansion_build", async () => {
       if (jobManager) jobManager.stop(false);
+      setRole("Builder", `Uitbreiden: ${state.project.active}`);
       await goHome(currentBot);
       await wait(1000);
 
       if (!state.expansion.animalPenBuilt && (snap.plankCount + snap.fenceCount) >= 64) {
-        currentBot.chat("🐄 Expansion Planner: animal pen bouwen.");
+        currentBot.chat("🐄 Autonome kolonist: animal pen bouwen.");
         await modules.baseBuilder.buildAnimalPen(currentBot, "oak_fence", 9);
         state.expansion.animalPenBuilt = true;
         return;
       }
 
       if (!state.expansion.extraFarmBuilt && snap.plankCount >= 90) {
-        currentBot.chat("🌾 Expansion Planner: extra farm bouwen.");
+        currentBot.chat("🌾 Autonome kolonist: extra farm bouwen.");
         await modules.baseBuilder.buildFarmPlot(currentBot, "oak_planks", 13);
         state.expansion.extraFarmBuilt = true;
         return;
       }
 
       if (!state.expansion.extraStorageBuilt && snap.plankCount >= 120) {
-        currentBot.chat("📦 Expansion Planner: extra storage platform bouwen.");
+        currentBot.chat("📦 Autonome kolonist: extra storage platform bouwen.");
         await modules.baseBuilder.buildPlatform(currentBot, "oak_planks", 13, 13);
         state.expansion.extraStorageBuilt = true;
       }
@@ -312,7 +342,8 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     if (project.status !== "collecting_planks" && project.status !== "collecting_materials") return false;
 
     return runAction("project_plan", async () => {
-      currentBot.chat(`📋 Project: ${project.active} | Materials: ${project.progress}/${project.requiredPlanks}. Ik verzamel hout.`);
+      setRole("Lumberjack", `Materialen voor ${project.active}`);
+      currentBot.chat(`📋 Kolonist project: ${project.active} | Materials: ${project.progress}/${project.requiredPlanks}. Ik verzamel hout.`);
       await goLumberyardAndChop(currentBot, currentMcData);
     });
   }
@@ -329,10 +360,11 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
       const snap = getSnapshot(currentBot);
       if (!snap) return false;
       updateProject(snap);
+      chooseRole(snap);
 
       if (snap.health <= 6) {
         return runAction("go_home_low_health", async () => {
-          currentBot.chat("🚨 Kritieke health. Ik ga naar home als dat kan.");
+          currentBot.chat("🚨 Kritieke health. Kolonist gaat naar home.");
           if (jobManager) jobManager.stop(false);
           if (autonomous) autonomous.stop();
           if (villageBuilder) villageBuilder.stop();
@@ -343,7 +375,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
 
       if (snap.health <= 10) {
         return runAction("low_health_eat_or_stop", async () => {
-          currentBot.chat("🧠 Lage health gedetecteerd. Ik speel veilig.");
+          currentBot.chat("🧠 Kolonist speelt veilig: lage health.");
           if (jobManager) jobManager.stop(false);
           if (autonomous) autonomous.stop();
           if (villageBuilder) villageBuilder.stop();
@@ -354,7 +386,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
       if (snap.isNight && modules.sleep?.sleepInNearestBed) {
         return runAction("sleep_night", async () => {
           if (jobManager) jobManager.stop(false);
-          currentBot.chat("🌙 Nacht gedetecteerd. Ik zoek een bed.");
+          currentBot.chat("🌙 Kolonist ziet nacht. Ik zoek een bed.");
           await modules.sleep.sleepInNearestBed(currentBot, false);
         });
       }
@@ -367,33 +399,35 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
 
       if (snap.emptySlots <= 2) {
         return runAction("go_warehouse_store", async () => {
-          currentBot.chat("🎒 Inventory bijna vol. Ik ga naar warehouse.");
+          currentBot.chat("🎒 Kolonist inventory bijna vol. Naar warehouse.");
           await goWarehouseAndStore(currentBot);
         });
       }
 
       if (!snap.hasPickaxe && modules.crafting?.craftQuick) {
         return runAction("craft_pickaxe", async () => {
+          setRole("Crafter", "Pickaxe maken");
           await modules.crafting.craftQuick(currentBot, currentMcData, "stone_pickaxe", 1);
         });
       }
 
       if (!snap.hasAxe && modules.crafting?.craftQuick) {
         return runAction("craft_axe", async () => {
+          setRole("Crafter", "Axe maken");
           await modules.crafting.craftQuick(currentBot, currentMcData, "stone_axe", 1);
         });
       }
 
       if (snap.foodCount < state.minimums.food && modules.farming?.farm) {
         return runAction("go_farm_food", async () => {
-          currentBot.chat(`🌾 Voedselvoorraad laag: ${snap.foodCount}/${state.minimums.food}. Ik ga farmen.`);
+          currentBot.chat(`🌾 Kolonist voedsel laag: ${snap.foodCount}/${state.minimums.food}. Ik ga farmen.`);
           await goFarmAndHarvest(currentBot, currentMcData);
         });
       }
 
       if (snap.stoneCount < state.minimums.stone && modules.mining?.mineBlock && snap.hasPickaxe) {
         return runAction("go_mine_stone", async () => {
-          currentBot.chat(`⛏️ Steenvoorraad laag: ${snap.stoneCount}/${state.minimums.stone}. Ik ga minen.`);
+          currentBot.chat(`⛏️ Kolonist steen laag: ${snap.stoneCount}/${state.minimums.stone}. Ik ga minen.`);
           await goMineAndCollect(currentBot, currentMcData);
         });
       }
@@ -409,12 +443,12 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
 
       if (snap.logCount < state.minimums.logs && modules.woodcutting?.chopWood && snap.hasAxe) {
         return runAction("go_lumberyard_wood", async () => {
-          currentBot.chat(`🌲 Houtvoorraad laag: ${snap.logCount}/${state.minimums.logs}. Ik ga hout halen.`);
+          currentBot.chat(`🌲 Kolonist hout laag: ${snap.logCount}/${state.minimums.logs}. Ik ga hout halen.`);
           await goLumberyardAndChop(currentBot, currentMcData);
         });
       }
 
-      state.lastAction = "idle_ok";
+      setRole("Colonist", "Onderhoud en wachten");
       state.lastSkipped = "none";
       return true;
     } catch (err) {
@@ -434,7 +468,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     }, Number(process.env.SMART_INTERVAL_MS) || 15000);
 
     const currentBot = bot();
-    if (currentBot) currentBot.chat("🧠 SmartBrain V10 gestart.");
+    if (currentBot) currentBot.chat("🤖 Autonome SMP-kolonist gestart.");
     decideAndAct().catch(() => {});
     return true;
   }
@@ -444,12 +478,12 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     if (state.loop) clearInterval(state.loop);
     state.loop = null;
     const currentBot = bot();
-    if (currentBot) currentBot.chat("🧠 SmartBrain V10 gestopt.");
+    if (currentBot) currentBot.chat("🤖 Autonome SMP-kolonist gestopt.");
     return true;
   }
 
   function colonyStatus() {
-    return `🏘️ Colony: ${state.colony.enabled ? "aan" : "uit"} | Starter: ${state.colony.starterBuilt} | Farm: ${state.colony.farmBuilt} | Warehouse: ${state.colony.warehouseBuilt} | Tower: ${state.colony.towerBuilt} | Expansion: ${state.expansion.enabled ? "aan" : "uit"} | AnimalPen: ${state.expansion.animalPenBuilt} | ExtraFarm: ${state.expansion.extraFarmBuilt} | ExtraStorage: ${state.expansion.extraStorageBuilt} | Project: ${state.project.active} ${state.project.progress}/${state.project.requiredPlanks} (${state.project.status})`;
+    return `🏘️ Colony: ${state.colony.enabled ? "aan" : "uit"} | Starter: ${state.colony.starterBuilt} | Farm: ${state.colony.farmBuilt} | Warehouse: ${state.colony.warehouseBuilt} | Tower: ${state.colony.towerBuilt} | Expansion: ${state.expansion.enabled ? "aan" : "uit"} | AnimalPen: ${state.expansion.animalPenBuilt} | ExtraFarm: ${state.expansion.extraFarmBuilt} | ExtraStorage: ${state.expansion.extraStorageBuilt} | Project: ${state.project.active} ${state.project.progress}/${state.project.requiredPlanks} (${state.project.status}) | Role: ${state.role}`;
   }
 
   function status() {
@@ -457,9 +491,12 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     const snap = getSnapshot(currentBot);
     if (!snap) return "🧠 SmartBrain: bot is nog niet online.";
     updateProject(snap);
+    chooseRole(snap);
 
     return [
-      `🧠 SmartBrain: ${state.enabled ? "aan" : "uit"}`,
+      `🤖 Autonome SMP-kolonist: ${state.enabled ? "aan" : "uit"}`,
+      `Role: ${state.role}`,
+      `Task: ${state.task}`,
       `Cycles: ${state.cycles}`,
       `Busy: ${state.busy}`,
       `Last action: ${state.lastAction}`,
