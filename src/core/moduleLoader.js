@@ -14,6 +14,7 @@ const animals = require("../modules/animals");
 const economy = require("../modules/economy");
 const navigation = require("../modules/navigation");
 const autonomous = require("../modules/autonomous");
+const explorer = require("../modules/explorer");
 
 function loadModules() {
   return {
@@ -32,7 +33,8 @@ function loadModules() {
     animals,
     economy,
     navigation,
-    autonomous
+    autonomous,
+    explorer
   };
 }
 
