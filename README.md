@@ -1,6 +1,6 @@
 # 🤖 DynathiAI Pro Core - Minecraft AI Bot voor DynathiSMP
 
-DynathiAI is een Minecraft Java bot gemaakt met **Mineflayer**. De bot kan verbinden met je Minecraft server, Discord commands ontvangen, jobs uitvoeren, waypoints onthouden, items verkopen, minen, hout hakken, vissen, farmen, bouwen en Autonomous Mode draaien.
+DynathiAI is een Minecraft Java bot gemaakt met **Mineflayer**. De bot kan verbinden met je Minecraft server, Discord commands ontvangen, jobs uitvoeren, waypoints onthouden, items verkopen, minen, hout hakken, vissen, farmen, bouwen, bases maken en Autonomous Mode draaien.
 
 Deze README is expres **noob vriendelijk** gemaakt. Alles staat stap voor stap uitgelegd 😄
 
@@ -152,6 +152,94 @@ bot help
 
 ---
 
+# 🏠 BaseBuilder V1
+
+BaseBuilder kan simpele starter bases maken.
+
+## Starter base bouwen
+
+```txt
+!bot base starter oak_planks
+```
+
+Dit bouwt een kleine starter hut met:
+
+```txt
+vloer
+muren
+deur opening
+raam openingen
+dak
+```
+
+## Hut bouwen
+
+```txt
+!bot base hut oak_planks
+```
+
+Grotere hut:
+
+```txt
+!bot base hut oak_planks 9 5
+```
+
+Betekenis:
+
+```txt
+9 = breedte/lengte
+5 = hoogte
+```
+
+## Platform bouwen
+
+```txt
+!bot base platform oak_planks 9 9
+```
+
+Groter platform:
+
+```txt
+!bot base platform cobblestone 15 15
+```
+
+## Eerste base test
+
+Geef de bot materiaal:
+
+```txt
+/give Dynathi oak_planks 512
+```
+
+Zet een base waypoint:
+
+```txt
+!bot waypoint set base
+```
+
+Laat de bot naar base lopen:
+
+```txt
+!bot goto base
+```
+
+Start de bouw:
+
+```txt
+!bot base starter oak_planks
+```
+
+Verwachte output:
+
+```txt
+🏠 Starter hut bouwen: 7x7x4 met oak_planks
+✅ Starter hut klaar. Blocks geplaatst: ...
+```
+
+Let op: BaseBuilder V1 is simpel. Hij heeft vlakke grond en genoeg blocks nodig.
+
+---
+
 # 📍 Waypoints
 
 Waypoints worden opgeslagen in:
@@ -164,6 +252,7 @@ data/waypoints.json
 
 ```txt
 !bot waypoint set home
+!bot waypoint set base
 !bot waypoint set warehouse
 !bot waypoint set farm
 !bot waypoint set mine
@@ -187,6 +276,7 @@ bot waypoint set home
 
 ```txt
 !bot goto home
+!bot goto base
 !bot goto warehouse
 !bot goto farm
 !bot goto mine
@@ -209,6 +299,7 @@ Aanbevolen waypoints voor DynathiSMP:
 
 ```txt
 home
+base
 warehouse
 farm
 mine
@@ -459,9 +550,11 @@ Na een update:
 !bot status
 !bot brain
 !bot job status
-!bot waypoint set home
+!bot waypoint set base
 !bot waypoint list
-!bot goto home
+!bot goto base
+!bot base platform oak_planks 9 9
+!bot base starter oak_planks
 !bot warehouse report
 !bot explore forest
 !bot auto start
@@ -519,6 +612,34 @@ Geef de bot blocks:
 
 ```txt
 /give Dynathi oak_planks 64
+```
+
+## Te weinig blocks voor BaseBuilder
+
+```txt
+🏠 Te weinig oak_planks. Nodig: ..., beschikbaar: ...
+```
+
+Geef de bot meer blocks:
+
+```txt
+/give Dynathi oak_planks 512
+```
+
+## BaseBuilder plaatst weinig of geen blocks
+
+BaseBuilder V1 heeft vlakke grond nodig. Test eerst op een vlak stuk gras of stone.
+
+Gebruik:
+
+```txt
+!bot base platform oak_planks 9 9
+```
+
+Als dat werkt, test daarna:
+
+```txt
+!bot base starter oak_planks
 ```
 
 ## Fishing cancelled
