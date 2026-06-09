@@ -8,6 +8,7 @@ const survival = require("../modules/survival");
 const crafting = require("../modules/crafting");
 const building = require("../modules/building");
 const baseBuilder = require("../modules/baseBuilder");
+const villageBuilder = require("../modules/villageBuilder");
 const itemframes = require("../modules/itemframes");
 const sleep = require("../modules/sleep");
 const aiBrain = require("../modules/aiBrain");
@@ -32,6 +33,7 @@ function loadModules() {
     crafting,
     building,
     baseBuilder,
+    villageBuilder,
     itemframes,
     sleep,
     aiBrain,
