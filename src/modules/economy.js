@@ -14,7 +14,7 @@ async function sendEconomyCommand(bot, command, delayMs = 1200) {
 }
 
 async function checkBalance(bot) {
-  return sendEconomyCommand(bot, "/bal", 1000);
+  return sendEconomyCommand(bot, "/balance", 1000);
 }
 
 async function openShop(bot) {
