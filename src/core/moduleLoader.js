@@ -16,6 +16,7 @@ const navigation = require("../modules/navigation");
 const autonomous = require("../modules/autonomous");
 const explorer = require("../modules/explorer");
 const warehouseAI = require("../modules/warehouseAI");
+const auctionAI = require("../modules/auctionAI");
 
 function loadModules() {
   return {
@@ -36,7 +37,8 @@ function loadModules() {
     navigation,
     autonomous,
     explorer,
-    warehouseAI
+    warehouseAI,
+    auctionAI
   };
 }
 
