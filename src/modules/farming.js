@@ -48,12 +48,21 @@ function isMatureCrop(block, farmInfo) {
   return Number(age) >= farmInfo.age;
 }
 
+function isAir(block) {
+  return !block || block.name === "air" || block.name === "cave_air" || block.name === "void_air";
+}
+
+function isValidSoil(block) {
+  if (!block) return false;
+  return block.name === "farmland" || block.name === "dirt" || block.name === "grass_block";
+}
+
 function findSeed(bot, seedName) {
   if (!seedName) return null;
   return bot.inventory.items().find(item => item.name === seedName || item.name.includes(seedName));
 }
 
-async function replantCrop(bot, block, farmInfo) {
+async function replantCrop(bot, oldCropBlock, farmInfo) {
   if (!farmInfo.seed) return false;
 
   const seed = findSeed(bot, farmInfo.seed);
@@ -63,15 +72,26 @@ async function replantCrop(bot, block, farmInfo) {
   }
 
   try {
-    const below = bot.blockAt(block.position.offset(0, -1, 0));
-    if (!below) return false;
+    const cropPos = oldCropBlock.position;
+    const currentBlock = bot.blockAt(cropPos);
+    const below = bot.blockAt(cropPos.offset(0, -1, 0));
+
+    if (!isAir(currentBlock)) return false;
+    if (!isValidSoil(below)) return false;
 
     await bot.equip(seed, "hand");
     await wait(250);
-    await bot.placeBlock(below, { x: 0, y: 1, z: 0 });
-    return true;
+
+    await Promise.race([
+      bot.placeBlock(below, { x: 0, y: 1, z: 0 }),
+      wait(2500).then(() => false)
+    ]);
+
+    await wait(350);
+    const planted = bot.blockAt(cropPos);
+    return planted && planted.name === farmInfo.crop;
   } catch (err) {
-    console.log("Replant error:", err.message);
+    console.log("Replant skipped:", err.message);
     return false;
   }
 }
@@ -133,9 +153,9 @@ async function farm(bot, mcData, farmType = "wheat", amount = 20) {
       if (!isMatureCrop(freshBlock, farmInfo)) continue;
 
       await bot.lookAt(freshBlock.position.offset(0.5, 0.5, 0.5), true);
-      await bot.dig(freshBlock);
+      await bot.dig(freshBlock, true);
       harvested++;
-      await wait(350);
+      await wait(500);
 
       if (await replantCrop(bot, freshBlock, farmInfo)) replanted++;
       await wait(250);
