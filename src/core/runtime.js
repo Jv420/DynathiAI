@@ -4,6 +4,7 @@ const { createJobManager } = require("../modules/jobs");
 const { createBrainLoop } = require("../modules/aiBrain");
 const { createAutonomousMode } = require("../modules/autonomous");
 const { createVillageBuilder } = require("../modules/villageBuilder");
+const { createSmartBrain } = require("../modules/smartBrain");
 
 function createRuntime() {
   const logger = createLogger();
@@ -54,6 +55,16 @@ function createRuntime() {
     log: logger.log
   });
 
+  const smartBrain = createSmartBrain({
+    bot: getBot,
+    mcData: getMcData,
+    modules,
+    jobManager,
+    autonomous,
+    villageBuilder,
+    log: logger.log
+  });
+
   function setBot(bot) {
     state.bot = bot;
   }
@@ -70,6 +81,7 @@ function createRuntime() {
     brain,
     autonomous,
     villageBuilder,
+    smartBrain,
     getBot,
     getMcData,
     setBot,
