@@ -1,9 +1,9 @@
-async function handleCommand({ bot, mcData, args, modules, jobManager, brain, autonomous, reply }) {
+async function handleCommand({ bot, mcData, args, modules, jobManager, brain, autonomous, villageBuilder, reply }) {
   const command = (args[0] || "help").toLowerCase();
   const sub = (args[1] || "").toLowerCase();
 
   if (command === "help") {
-    reply("🤖 DynathiAI commands: mine, chop, fish, farm, chest, shulker, craft, build, base, goto, waypoint, warehouse, explore, auto, follow, stop, attack, guard, eat, status, sleep, brain, job, balance, sell, shop, ah");
+    reply("🤖 DynathiAI commands: mine, chop, fish, farm, chest, shulker, craft, build, base, village, goto, waypoint, warehouse, explore, auto, follow, stop, attack, guard, eat, status, sleep, brain, job, balance, sell, shop, ah");
     return true;
   }
 
@@ -11,6 +11,15 @@ async function handleCommand({ bot, mcData, args, modules, jobManager, brain, au
   if (command === "chop" || command === "wood") return modules.woodcutting.chopWood(bot, mcData, Number(args[1]) || 10);
   if (command === "fish") return modules.fishing.fishOnce(bot);
   if (command === "farm") return modules.farming.farm(bot, mcData, args[1] || "wheat", Number(args[2]) || 20);
+
+  if (command === "village") {
+    if (!villageBuilder) return reply("❌ VillageBuilder controller is niet geladen.");
+    if (sub === "start") return villageBuilder.start(args[2] || "oak_planks");
+    if (sub === "stop") return villageBuilder.stop();
+    if (sub === "status" || !sub) return reply(villageBuilder.status());
+    reply("Gebruik: village start <block> | village stop | village status");
+    return false;
+  }
 
   if (command === "chest") {
     const names = modules.storage.getChestNames();
@@ -91,6 +100,7 @@ async function handleCommand({ bot, mcData, args, modules, jobManager, brain, au
     if (jobManager) jobManager.stop(false);
     if (brain) brain.stop();
     if (autonomous) autonomous.stop();
+    if (villageBuilder) villageBuilder.stop();
     return true;
   }
 
