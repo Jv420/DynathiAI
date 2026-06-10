@@ -4,6 +4,50 @@ const collectBlock = require("mineflayer-collectblock").plugin;
 const minecraftData = require("minecraft-data");
 const { handleCommand } = require("./commandHandler");
 
+function installChatThrottle(bot, runtime) {
+  const originalChat = bot.chat.bind(bot);
+  const queue = [];
+  let sending = false;
+  let lastMessage = "";
+  let lastMessageAt = 0;
+  const delayMs = Number(process.env.CHAT_THROTTLE_MS) || 3000;
+  const maxQueue = Number(process.env.CHAT_QUEUE_MAX) || 20;
+
+  async function pump() {
+    if (sending) return;
+    sending = true;
+
+    while (queue.length && bot.entity) {
+      const message = queue.shift();
+      try {
+        originalChat(message.slice(0, 240));
+      } catch (err) {
+        if (runtime?.logger) runtime.logger.log(`❌ Chat throttle error: ${err.message}`);
+      }
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+
+    sending = false;
+  }
+
+  bot.chat = message => {
+    const text = String(message || "").trim();
+    if (!text) return false;
+
+    const now = Date.now();
+    if (text === lastMessage && now - lastMessageAt < 15000) return false;
+    lastMessage = text;
+    lastMessageAt = now;
+
+    if (queue.length >= maxQueue) queue.shift();
+    queue.push(text);
+    pump().catch(() => {});
+    return true;
+  };
+
+  bot.chatNow = originalChat;
+}
+
 function createMinecraftBot(runtime) {
   const bot = mineflayer.createBot({
     host: process.env.BOT_HOST || "dynathiv2.duckdns.org",
@@ -12,6 +56,8 @@ function createMinecraftBot(runtime) {
     auth: process.env.AUTH || "microsoft",
     version: process.env.BOT_VERSION || "1.21.11"
   });
+
+  installChatThrottle(bot, runtime);
 
   bot.loadPlugin(pathfinder);
   bot.loadPlugin(collectBlock);
