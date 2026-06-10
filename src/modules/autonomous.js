@@ -8,10 +8,6 @@ function countItems(bot, matcher) {
   return bot.inventory.items().filter(item => matcher(item.name)).reduce((total, item) => total + item.count, 0);
 }
 
-function hasRawFood(bot) {
-  return hasItem(bot, name => name.startsWith("raw_") || name === "potato");
-}
-
 function hasCookedFood(bot) {
   return hasItem(bot, name => name.includes("bread") || name.includes("apple") || name.includes("cooked") || name.includes("beef") || name.includes("porkchop") || name.includes("chicken") || name.includes("mutton") || name.includes("carrot") || name.includes("potato"));
 }
@@ -24,7 +20,7 @@ function createAutonomousMode({ bot, mcData, modules, jobManager, brain, log }) 
     cycles: 0,
     lastAction: "idle",
     lastError: "none",
-    cookingRuns: 0,
+    foodChainRuns: 0,
     roadRuns: 0,
     logisticsRuns: 0
   };
@@ -48,21 +44,23 @@ function createAutonomousMode({ bot, mcData, modules, jobManager, brain, log }) 
         await modules.survival.autoEat(currentBot);
       }
 
-      const foodCount = countItems(currentBot, name => name.includes("bread") || name.includes("apple") || name.includes("cooked") || name.includes("beef") || name.includes("chicken") || name.includes("porkchop") || name.includes("mutton") || name.includes("carrot") || name.includes("potato"));
+      const foodCount = modules.foodChain?.countFood
+        ? modules.foodChain.countFood(currentBot)
+        : countItems(currentBot, name => name.includes("bread") || name.includes("apple") || name.includes("cooked") || name.includes("beef") || name.includes("chicken") || name.includes("porkchop") || name.includes("mutton") || name.includes("carrot") || name.includes("potato"));
 
-      if (foodCount < 8 && hasRawFood(currentBot) && modules.cooking?.cookFood) {
-        state.lastAction = "cook_food";
-        await modules.cooking.cookFood(currentBot, 8);
-        state.cookingRuns++;
+      if ((foodCount < 12 || currentBot.food < 16) && modules.foodChain?.runFoodChain) {
+        state.lastAction = "food_chain";
+        const ok = await modules.foodChain.runFoodChain(currentBot, currentMcData, modules, { minFood: 16 });
+        if (ok) state.foodChainRuns++;
       }
 
-      if (currentBot.inventory.emptySlotCount() <= 2 && modules.storage?.containerStore) {
+      if (currentBot.inventory.emptySlotCount() <= 2 && modules.warehouseAI?.sortInventory) {
+        state.lastAction = "warehouse_sort";
+        await modules.warehouseAI.sortInventory(currentBot, modules.storage);
+        state.logisticsRuns++;
+      } else if (currentBot.inventory.emptySlotCount() <= 2 && modules.storage?.containerStore) {
         state.lastAction = "smart_store";
-        if (modules.storage.storeFood || modules.storage.storeWood || modules.storage.storeStone) {
-          await modules.storage.containerStore(currentBot, modules.storage.getChestNames(), "Auto Chest");
-        } else {
-          await modules.storage.containerStore(currentBot, modules.storage.getChestNames(), "Chest");
-        }
+        await modules.storage.containerStore(currentBot, modules.storage.getChestNames(), "Auto Chest");
         state.logisticsRuns++;
       }
 
@@ -79,9 +77,10 @@ function createAutonomousMode({ bot, mcData, modules, jobManager, brain, log }) 
         await modules.crafting.craftQuick(currentBot, currentMcData, "stone_axe", 1);
       }
 
-      if (!hasCookedFood(currentBot) && modules.farming?.farm) {
-        state.lastAction = "farm_food";
-        await modules.farming.farm(currentBot, currentMcData, "wheat", 10);
+      if (!hasCookedFood(currentBot) && modules.foodChain?.runFoodChain) {
+        state.lastAction = "food_chain_backup";
+        const ok = await modules.foodChain.runFoodChain(currentBot, currentMcData, modules, { minFood: 16 });
+        if (ok) state.foodChainRuns++;
       }
 
       if (state.cycles % 20 === 0 && modules.roadNetwork?.buildNetwork) {
@@ -129,7 +128,7 @@ function createAutonomousMode({ bot, mcData, modules, jobManager, brain, log }) 
   }
 
   function status() {
-    return `🤖 Autonomous: ${state.enabled ? "aan" : "uit"} | Cycles: ${state.cycles} | Busy: ${state.busy} | Last: ${state.lastAction} | Cooking: ${state.cookingRuns} | Logistics: ${state.logisticsRuns} | Roads: ${state.roadRuns} | Error: ${state.lastError}`;
+    return `🤖 Autonomous: ${state.enabled ? "aan" : "uit"} | Cycles: ${state.cycles} | Busy: ${state.busy} | Last: ${state.lastAction} | FoodChain: ${state.foodChainRuns} | Logistics: ${state.logisticsRuns} | Roads: ${state.roadRuns} | Error: ${state.lastError}`;
   }
 
   return { state, start, stop, status, tick };
