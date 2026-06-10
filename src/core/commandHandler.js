@@ -3,7 +3,7 @@ async function handleCommand({ bot, mcData, args, modules, jobManager, brain, au
   const sub = (args[1] || "").toLowerCase();
 
   if (command === "help") {
-    reply("🤖 DynathiAI commands: mine, chop, fish, farm, chest, shulker, craft, build, base, village, smart, goto, waypoint, warehouse, explore, auto, follow, stop, attack, guard, eat, status, sleep, brain, job, balance, sell, shop, ah");
+    reply("🤖 DynathiAI commands: mine, chop, fish, farm, chest, shulker, craft, build, base, village, smart, road, goto, waypoint, warehouse, explore, auto, follow, stop, attack, guard, eat, status, sleep, brain, job, balance, sell, shop, ah");
     return true;
   }
 
@@ -25,6 +25,14 @@ async function handleCommand({ bot, mcData, args, modules, jobManager, brain, au
     if (sub === "logistics" || sub === "storage") { const action = (args[2] || "status").toLowerCase(); if (action === "on" || action === "start") return smartBrain.logisticsOn(); if (action === "off" || action === "stop") return smartBrain.logisticsOff(); if (smartBrain.storageStatus) return reply(smartBrain.storageStatus()); return reply(smartBrain.status()); }
     if (sub === "human" || sub === "player") { const action = (args[2] || "status").toLowerCase(); if (action === "on" || action === "start") return smartBrain.humanOn(); if (action === "off" || action === "stop") return smartBrain.humanOff(); return reply(smartBrain.storageStatus ? smartBrain.storageStatus() : smartBrain.status()); }
     reply("Gebruik: smart start | smart stop | smart status | smart tick | smart home <waypoint> | smart warehouse <waypoint> | smart farm <waypoint> | smart mine <waypoint> | smart lumber <waypoint> | smart colony on/off/status | smart expansion on/off/status | smart territory on/off/status | smart outpost <waypoint> | smart logistics on/off/status | smart human on/off/status");
+    return false;
+  }
+
+  if (command === "road" || command === "roads") {
+    if (!modules.roadNetwork) return reply("❌ RoadNetwork module is niet geladen.");
+    if (sub === "network" || sub === "auto" || sub === "all") return modules.roadNetwork.buildNetwork(bot, mcData, modules, args[2] || "cobblestone");
+    if (sub === "build") return modules.roadNetwork.buildRoad(bot, mcData, modules, args[2] || "home", args[3] || "warehouse", args[4] || "cobblestone");
+    reply("Gebruik: road network <block> | road build <fromWaypoint> <toWaypoint> <block>");
     return false;
   }
 
