@@ -47,6 +47,7 @@ function createCooldowns() {
   return {
     go_home_low_health: 60000,
     go_warehouse_store: 45000,
+    auto_logistics: 90000,
     go_farm_food: 90000,
     go_mine_stone: 90000,
     go_lumberyard_wood: 90000,
@@ -80,7 +81,12 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     role: "Idle",
     task: "Wachten",
     cooldowns: createCooldowns(),
-    storageMode: "multi-network",
+    storageMode: "multi-network + auto-logistics",
+    logistics: {
+      enabled: process.env.SMART_LOGISTICS_ENABLED !== "false",
+      lastRoute: "none",
+      movedRuns: 0
+    },
     minimums: {
       food: Number(process.env.SMART_MIN_FOOD) || 16,
       logs: Number(process.env.SMART_MIN_LOGS) || 32,
@@ -167,7 +173,23 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
   }
 
   function storageStatus() {
-    return `Storage mode: ${state.storageMode} | Food: ${getStorageRoute("food").join(" -> ")} | Wood: ${getStorageRoute("wood").join(" -> ")} | Stone: ${getStorageRoute("stone").join(" -> ")} | Building: ${getStorageRoute("building").join(" -> ")}`;
+    return `Storage mode: ${state.storageMode} | Logistics: ${state.logistics.enabled ? "aan" : "uit"} | Last logistics: ${state.logistics.lastRoute} | Runs: ${state.logistics.movedRuns} | Food: ${getStorageRoute("food").join(" -> ")} | Wood: ${getStorageRoute("wood").join(" -> ")} | Stone: ${getStorageRoute("stone").join(" -> ")} | Building: ${getStorageRoute("building").join(" -> ")}`;
+  }
+
+  function classifyItem(name) {
+    if (name.includes("bread") || name.includes("apple") || name.includes("beef") || name.includes("chicken") || name.includes("porkchop") || name.includes("mutton") || name.includes("carrot") || name.includes("potato") || name.includes("wheat") || name.includes("seed")) return "food";
+    if (name.includes("log") || name.includes("stem") || name.includes("planks") || name.includes("sapling")) return "wood";
+    if (name.includes("cobblestone") || name === "stone" || name.includes("deepslate") || name.includes("ore") || name.includes("coal") || name.includes("iron") || name.includes("copper") || name.includes("gold") || name.includes("redstone") || name.includes("lapis")) return "stone";
+    if (name.includes("fence") || name.includes("chest") || name.includes("crafting_table") || name.includes("door") || name.includes("stairs") || name.includes("slab") || name.includes("glass")) return "building";
+    return "warehouse";
+  }
+
+  function getLogisticsTarget(category) {
+    if (category === "food") return state.farmWaypoint;
+    if (category === "wood") return state.lumberWaypoint;
+    if (category === "stone") return state.mineWaypoint;
+    if (category === "building") return state.warehouseWaypoint;
+    return state.warehouseWaypoint;
   }
 
   function updateProject(snap) {
@@ -188,7 +210,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
   function chooseRole(snap) {
     const project = updateProject(snap);
     if (snap.health <= 10) return setRole("Survivor", "Veiligheid en eten");
-    if (snap.emptySlots <= 2) return setRole("Warehouse Manager", "Inventory opslaan");
+    if (snap.emptySlots <= 2) return setRole("Logistics Manager", "Inventory sorteren");
     if (snap.isNight) return setRole("Sleeper", "Bed zoeken");
     if (snap.foodCount < state.minimums.food || snap.food <= 12) return setRole("Farmer", "Voedsel regelen");
     if (!snap.hasPickaxe || !snap.hasAxe) return setRole("Crafter", "Tools maken");
@@ -207,7 +229,32 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
 
   async function goHome(currentBot) { return goWaypoint(currentBot, state.homeWaypoint); }
 
+  async function storeAllAt(currentBot, waypointName, label) {
+    if (!modules.storage?.containerStore) return false;
+    await goWaypoint(currentBot, waypointName);
+    await wait(1000);
+    return modules.storage.containerStore(currentBot, modules.storage.getChestNames(), label || waypointName);
+  }
+
+  async function autoLogistics(currentBot) {
+    if (!state.logistics.enabled || !modules.storage?.containerStore) return false;
+    return runAction("auto_logistics", async () => {
+      if (jobManager) jobManager.stop(false);
+      setRole("Logistics Manager", "Items sorteren naar opslagnetwerk");
+      const items = currentBot.inventory.items().filter(Boolean);
+      const categories = new Set(items.map(item => classifyItem(item.name)));
+      const priority = ["food", "wood", "stone", "building", "warehouse"];
+      const firstCategory = priority.find(cat => categories.has(cat)) || "warehouse";
+      const target = getLogisticsTarget(firstCategory);
+      state.logistics.lastRoute = `${firstCategory} -> ${target}`;
+      state.logistics.movedRuns++;
+      say("auto_logistics", `🚚 Logistics: ${firstCategory} naar ${target}.`, 60000);
+      await storeAllAt(currentBot, target, `Logistics ${target}`);
+    });
+  }
+
   async function goWarehouseAndStore(currentBot) {
+    if (state.logistics.enabled) return autoLogistics(currentBot);
     if (jobManager) jobManager.stop(false);
     setRole("Warehouse Manager", "Opslaan in warehouse");
     await goWaypoint(currentBot, state.warehouseWaypoint);
@@ -347,7 +394,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
       if (snap.health <= 10) return runAction("low_health_eat_or_stop", async () => { say("safe_health", "🧠 Kolonist speelt veilig: lage health.", 60000); if (jobManager) jobManager.stop(false); if (autonomous) autonomous.stop(); if (villageBuilder) villageBuilder.stop(); if (modules.survival?.eatFood) await modules.survival.eatFood(currentBot); });
       if (snap.isNight && modules.sleep?.sleepInNearestBed) return runAction("sleep_night", async () => { if (jobManager) jobManager.stop(false); say("sleep_night", "🌙 Nacht. Ik zoek rustig een bed.", 180000); await modules.sleep.sleepInNearestBed(currentBot, false); });
       if (snap.food <= 12) return runAction("eat_food", async () => { if (modules.survival?.eatFood) await modules.survival.eatFood(currentBot); });
-      if (snap.emptySlots <= 2) return runAction("go_warehouse_store", async () => { say("inventory_full", "🎒 Inventory bijna vol. Naar warehouse.", 60000); await goWarehouseAndStore(currentBot); });
+      if (snap.emptySlots <= 2) return autoLogistics(currentBot);
       if (!snap.hasPickaxe && modules.crafting?.craftQuick) return runAction("craft_pickaxe", async () => { setRole("Crafter", "Pickaxe maken"); await modules.crafting.craftQuick(currentBot, currentMcData, "stone_pickaxe", 1); });
       if (!snap.hasAxe && modules.crafting?.craftQuick) return runAction("craft_axe", async () => { setRole("Crafter", "Axe maken"); await modules.crafting.craftQuick(currentBot, currentMcData, "stone_axe", 1); });
       if (snap.foodCount < state.minimums.food) return runAction("supply_food", async () => { say("food_low", `🌾 Voedsel laag: ${snap.foodCount}/${state.minimums.food}. Ik check farm -> warehouse.`, 60000); const took = await takeFromStorageNetwork(currentBot, "food", 32); if (!took && modules.farming?.farm) await goFarmAndHarvest(currentBot, currentMcData); });
@@ -439,6 +486,8 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
   function territoryOn() { state.territory.enabled = true; say("territory_on", "🏴 Territory System aangezet.", 10000); return true; }
   function territoryOff() { state.territory.enabled = false; say("territory_off", "🏴 Territory System uitgezet.", 10000); return true; }
   function setOutpost(name = "outpost") { state.territory.outpostWaypoint = name; say("set_outpost", `🏕️ Outpost waypoint ingesteld op: ${name}`, 10000); return true; }
+  function logisticsOn() { state.logistics.enabled = true; say("logistics_on", "🚚 Auto Logistics aangezet.", 10000); return true; }
+  function logisticsOff() { state.logistics.enabled = false; say("logistics_off", "🚚 Auto Logistics uitgezet.", 10000); return true; }
 
   return {
     state,
@@ -453,6 +502,8 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     expansionOff,
     territoryOn,
     territoryOff,
+    logisticsOn,
+    logisticsOff,
     setOutpost,
     tick: decideAndAct,
     setHome,
