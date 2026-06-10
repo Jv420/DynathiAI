@@ -1,8 +1,16 @@
 # 🤖 DynathiAI Pro Core - Minecraft AI Bot voor DynathiSMP
 
-DynathiAI is een Minecraft Java bot gemaakt met **Mineflayer**. De bot kan verbinden met je Minecraft server, Discord commands ontvangen, jobs uitvoeren, waypoints onthouden, minen, hout hakken, farmen, items opslaan, bases bouwen en nu ook draaien als **autonome SMP-kolonist / SMP-beschaving**.
+DynathiAI is een Minecraft Java bot gemaakt met **Mineflayer**. De bot kan verbinden met je Minecraft server, Discord commands ontvangen, jobs uitvoeren, waypoints onthouden, minen, hout hakken, farmen, items opslaan, bases bouwen en draaien als **autonome SMP-kolonist / SMP-beschaving**.
 
-Deze README is noob-vriendelijk gemaakt zodat je hem direct kunt testen 😄
+Nieuw in deze versie:
+
+```txt
+✅ SmartBrain Colony AI
+✅ Multi Storage Network
+✅ Auto Logistics + Multi-Stop Logistics
+✅ Human Behaviour System
+✅ Road Network System
+```
 
 ---
 
@@ -25,12 +33,6 @@ Na elke GitHub update:
 git pull
 npm install
 npm start
-```
-
-Voor meer geheugen bij lange tests:
-
-```bash
-node --max-old-space-size=2048 bot.js
 ```
 
 ---
@@ -68,6 +70,8 @@ SMART_MIN_STONE=64
 SMART_COLONY_ENABLED=true
 SMART_EXPANSION_ENABLED=true
 SMART_TERRITORY_ENABLED=true
+SMART_LOGISTICS_ENABLED=true
+SMART_HUMAN_ENABLED=true
 ```
 
 Voor Paper servers kan dit nodig zijn in `server.properties`:
@@ -92,20 +96,13 @@ Minecraft chat:
 bot
 ```
 
-Voorbeeld:
-
-```txt
-!bot help
-bot help
-```
-
 ---
 
-# 🚀 Snelle test: autonome SMP-kolonist
+# 🚀 Snelle start voor DynathiSMP
 
-## 1. Zet de bot op een vlak testgebied
+## 1. Zet waypoints
 
-Gebruik een leeg vlak gebied met genoeg ruimte. Zet eerst de basis waypoints.
+Gebruik een vlak testgebied met genoeg ruimte.
 
 ```txt
 bot waypoint set home
@@ -116,7 +113,7 @@ bot waypoint set lumberyard
 bot waypoint set outpost
 ```
 
-Tip: zet `outpost` op een andere plek dan home, bijvoorbeeld 50 tot 100 blocks verderop.
+Tip: zet `outpost` 50 tot 100 blocks verderop.
 
 ## 2. Geef testmateriaal
 
@@ -128,127 +125,44 @@ Gebruik je eigen botnaam als die anders is dan `Dynathi`.
 /give Dynathi stone_axe 1
 /give Dynathi oak_planks 1024
 /give Dynathi oak_fence 256
-/give Dynathi cobblestone 256
+/give Dynathi cobblestone 512
+/give Dynathi stone_bricks 512
 /give Dynathi stick 64
 /give Dynathi chest 32
 /give Dynathi crafting_table 8
 ```
 
-## 3. Start SmartBrain
+## 3. Plaats chests
+
+Plaats minimaal één chest bij:
 
 ```txt
-bot smart start
-bot smart colony on
-bot smart expansion on
-bot smart status
-```
-
----
-
-# 🧠 Verschil tussen `smart start`, `colony on` en `expansion on`
-
-Deze drie commands lijken op elkaar, maar doen iets anders.
-
-## `bot smart start`
-
-Dit zet de **SmartBrain loop** aan.
-
-Dat betekent: Dynathi begint elke paar seconden te denken en kiest automatisch een rol.
-
-Voorbeelden:
-
-```txt
-Health laag      -> Survivor
-Food laag        -> Farmer
-Inventory vol    -> Warehouse Manager
-Steen tekort     -> Miner
-Hout tekort      -> Lumberjack
-Project klaar    -> Builder
-```
-
-Zonder `bot smart start` denkt Dynathi niet automatisch. Dan staan `colony on` en `expansion on` wel klaar, maar er gebeurt weinig tot je `smart start` gebruikt.
-
-## `bot smart colony on`
-
-Dit zet de **Colony Builder** aan.
-
-De Colony Builder bepaalt of Dynathi de hoofdbasis mag bouwen.
-
-Bouwvolgorde:
-
-```txt
-1. Starter Base
-2. Farm Plot
-3. Warehouse
-4. Watchtower
-```
-
-Dit command start dus niet de denk-loop zelf. Het zegt alleen: “Dynathi mag colony-projecten bouwen zodra SmartBrain draait.”
-
-## `bot smart expansion on`
-
-Dit zet de **Expansion Planner** aan.
-
-Deze fase begint pas nadat de basis/colony grotendeels klaar is.
-
-Expansion bouwt:
-
-```txt
-5. Animal Pen
-6. Extra Farm
-7. Extra Storage
-```
-
-Dit is dus uitbreiding na de eerste basis.
-
-## Simpel gezegd
-
-```txt
-bot smart start       = AI brein aanzetten
-bot smart colony on   = hoofdbasis bouwen toestaan
-bot smart expansion on= uitbreiding na hoofdbasis toestaan
-```
-
-Aanbevolen startvolgorde:
-
-```txt
-bot smart start
-bot smart colony on
-bot smart expansion on
-bot smart status
-```
-
-Alles stoppen:
-
-```txt
-bot stop
-```
-
-Of alleen SmartBrain stoppen:
-
-```txt
-bot smart stop
-```
-
----
-
-## 4. Test Territory / Outpost
-
-De bot gebruikt standaard het waypoint:
-
-```txt
+warehouse
+farm
+mine
+lumberyard
 outpost
 ```
 
-Zorg dus dat deze bestaat:
+Aanbevolen inhoud:
 
 ```txt
-bot waypoint set outpost
+farm chest       = food, crops, seeds
+lumberyard chest = logs, planks, saplings
+mine chest       = stone, cobble, ores
+warehouse chest  = bouwmateriaal en overflow
+outpost chest    = reserve voorraad
 ```
 
-Controleer daarna:
+## 4. Start SmartBrain
 
 ```txt
+bot smart start
+bot smart colony on
+bot smart expansion on
+bot smart territory on
+bot smart logistics on
+bot smart human on
 bot smart status
 ```
 
@@ -263,7 +177,7 @@ bot smart status
 bot smart tick
 ```
 
-Waypoints instellen voor SmartBrain:
+Waypoints instellen:
 
 ```txt
 bot smart home home
@@ -271,6 +185,7 @@ bot smart warehouse warehouse
 bot smart farm farm
 bot smart mine mine
 bot smart lumber lumberyard
+bot smart outpost outpost
 ```
 
 Colony Builder:
@@ -289,6 +204,39 @@ bot smart expansion on
 bot smart expansion off
 ```
 
+Territory / Outpost:
+
+```txt
+bot smart territory
+bot smart territory on
+bot smart territory off
+bot smart outpost outpost
+```
+
+Logistics:
+
+```txt
+bot smart logistics on
+bot smart logistics off
+bot smart logistics status
+```
+
+Human Behaviour:
+
+```txt
+bot smart human on
+bot smart human off
+bot smart human status
+```
+
+Alias:
+
+```txt
+bot smart player on
+bot smart player off
+bot smart player status
+```
+
 Alles stoppen:
 
 ```txt
@@ -297,33 +245,28 @@ bot stop
 
 ---
 
-# 🤖 Wat doet de autonome SMP-kolonist?
+# 🤖 Rollen van Dynathi
 
-Dynathi kiest automatisch een rol:
+Dynathi kiest automatisch rollen:
 
 ```txt
-🛡️ Survivor          lage health / veiligheid
-🌙 Sleeper           nacht / bed zoeken
-🌾 Farmer            voedsel regelen
-🌲 Lumberjack        hout en bouwmaterialen verzamelen
-⛏️ Miner             steen verzamelen
-🔨 Crafter           tools maken
-📦 Warehouse Manager inventory opslaan
-🏗️ Builder           projecten bouwen
-🏕️ Outpost Builder   nieuwe outpost bouwen
-🤖 Colonist          onderhoud en wachten
+🛡️ Survivor           lage health / veiligheid
+🌙 Sleeper            nacht / bed zoeken
+🌾 Farmer             voedsel regelen
+🌲 Lumberjack         hout en bouwmaterialen verzamelen
+⛏️ Miner              steen verzamelen
+🔨 Crafter            tools maken
+📦 Warehouse Manager  voorraad pakken
+🚚 Logistics Manager  items sorteren en opslagroutes rijden
+🏗️ Builder            projecten bouwen
+🏕️ Outpost Builder    nieuwe outpost bouwen
+🤖 Colonist           onderhoud en wachten
 ```
 
-Status voorbeeld:
+Status bekijken:
 
 ```txt
 bot smart status
-```
-
-Output lijkt op:
-
-```txt
-🤖 Autonome SMP-beschaving: aan | Role: Builder | Task: Project bouwen: warehouse | Project: warehouse | 120/160 | ready_to_build
 ```
 
 ---
@@ -357,6 +300,121 @@ Output lijkt op:
 
 ---
 
+# 📦 V5 Multi Storage + Auto Logistics
+
+Dynathi gebruikt nu meerdere opslagpunten.
+
+## Voorraad pakken
+
+```txt
+Food route:     farm -> warehouse
+Wood route:     lumberyard -> warehouse
+Stone route:    mine -> warehouse
+Building route: warehouse -> lumberyard -> outpost
+```
+
+## Voorraad sorteren
+
+Als zijn inventory bijna vol is, gebruikt hij multi-stop logistics:
+
+```txt
+🌾 food/crops/seeds -> farm chest
+🌲 logs/planks      -> lumberyard chest
+⛏️ stone/ores       -> mine chest
+🏗️ building items   -> warehouse chest
+📦 overig/overflow  -> warehouse chest
+```
+
+Aan/uit zetten:
+
+```txt
+bot smart logistics on
+bot smart logistics off
+bot smart logistics status
+```
+
+---
+
+# 👤 V6 Human Behaviour System
+
+Dynathi probeert minder robotachtig te bewegen.
+
+Hij kan nu:
+
+```txt
+👀 random rondkijken
+⏱️ natuurlijke pauzes nemen
+🦘 kleine jump/fidget acties doen
+🍖 eerder eten voordat hij bijna doodgaat
+🏠 soms terug naar home tijdens idle
+🚚 trager en menselijker met chests werken
+```
+
+Aan/uit zetten:
+
+```txt
+bot smart human on
+bot smart human off
+bot smart human status
+```
+
+In status zie je bijvoorbeeld:
+
+```txt
+Human: aan
+Human idle: 12
+Last human: look_around
+```
+
+---
+
+# 🛣️ V7 Road Network System
+
+Dynathi kan wegen bouwen tussen waypoints.
+
+## Eén weg bouwen
+
+```txt
+bot road build home warehouse
+bot road build warehouse farm
+bot road build warehouse mine
+bot road build warehouse lumberyard
+bot road build warehouse outpost
+```
+
+Met eigen blok:
+
+```txt
+bot road build home warehouse stone_bricks
+bot road build warehouse farm cobblestone
+```
+
+## Hele network bouwen
+
+```txt
+bot road network
+```
+
+Of met blok naar keuze:
+
+```txt
+bot road network stone_bricks
+```
+
+Road network routes:
+
+```txt
+home -> warehouse
+warehouse -> farm
+warehouse -> mine
+warehouse -> lumberyard
+warehouse -> outpost
+```
+
+Let op: zorg dat Dynathi genoeg bouwblokken in zijn inventory heeft.
+
+---
+
 # 📍 Waypoints
 
 Waypoints worden opgeslagen in:
@@ -365,7 +423,7 @@ Waypoints worden opgeslagen in:
 data/waypoints.json
 ```
 
-Belangrijkste waypoints voor SmartBrain:
+Belangrijkste waypoints:
 
 ```txt
 home
@@ -418,19 +476,6 @@ bot warehouse storecat food
 bot warehouse storecat tools
 ```
 
-Categorieën:
-
-```txt
-wood
-stone
-ores
-food
-tools
-farming
-valuables
-misc
-```
-
 ---
 
 # 🏠 BaseBuilder
@@ -447,8 +492,6 @@ bot base pen oak_fence 11
 bot base tower oak_planks 10
 ```
 
-Let op: bouwen werkt het beste op vlak terrein met genoeg ruimte.
-
 ---
 
 # 🏘️ VillageBuilder
@@ -457,16 +500,6 @@ Let op: bouwen werkt het beste op vlak terrein met genoeg ruimte.
 bot village start oak_planks
 bot village status
 bot village stop
-```
-
-VillageBuilder bouwt:
-
-```txt
-🏘️ Town Square
-🏠 Starter House
-🌾 Farm Plot
-🐄 Animal Pen
-🗼 Watchtower
 ```
 
 ---
@@ -548,49 +581,41 @@ bot waypoint set outpost
 bot waypoint list
 ```
 
-## Test 3: verschil commands testen
-
-```txt
-bot smart status
-bot smart colony
-bot smart expansion
-```
-
-## Test 4: kolonist starten
+## Test 3: SmartBrain starten
 
 ```txt
 bot smart start
 bot smart colony on
 bot smart expansion on
+bot smart territory on
+bot smart logistics on
+bot smart human on
 bot smart status
 ```
 
-## Test 5: bouwen controleren
+## Test 4: storage/logistics
 
-Wacht een paar minuten en gebruik:
+Vul Dynathi met verschillende items en laat zijn inventory bijna vol worden.
 
 ```txt
-bot smart status
+bot smart logistics status
 ```
 
 Je wilt zien:
 
 ```txt
-Role: Builder
-Project: starter_base / farm_plot / warehouse / watchtower
+Role: Logistics Manager
+Storage mode: multi-network + auto-logistics + multi-stop
 ```
 
-## Test 6: outpost testen
-
-Ga naar een nieuwe plek en zet:
+## Test 5: roads
 
 ```txt
-bot waypoint set outpost
+bot road build home warehouse cobblestone
+bot road network cobblestone
 ```
 
-Ga terug naar home of laat de bot verder draaien.
-
-Controleer:
+## Test 6: bouwen controleren
 
 ```txt
 bot smart status
@@ -599,8 +624,8 @@ bot smart status
 Je wilt later zien:
 
 ```txt
-Project: outpost_base
-Role: Outpost Builder
+Role: Builder
+Project: starter_base / farm_plot / warehouse / watchtower
 ```
 
 ---
@@ -608,55 +633,12 @@ Role: Outpost Builder
 # ⚠️ Bekende testtips
 
 - Test eerst op een vlak gebied.
-- Geef genoeg oak_planks en oak_fence voor de eerste test.
+- Geef genoeg oak_planks, oak_fence, cobblestone of stone_bricks voor de eerste test.
 - Zet `home`, `warehouse`, `farm`, `mine`, `lumberyard` en `outpost` echt goed.
+- Plaats chests dichtbij de juiste waypoints.
+- Plaats een bed dichtbij home.
+- Plaats een crafting table dichtbij warehouse.
 - Gebruik `bot stop` als hij blijft lopen of bouwen.
-- Als crafting niet lukt, plaats een crafting table dichtbij.
-- Als storage niet lukt, plaats een chest dichtbij warehouse.
-- Als slapen niet lukt, plaats een bed dichtbij home.
-- Na GitHub updates altijd de bot herstarten.
+- Na GitHub updates altijd `git pull`, `npm install` en de bot herstarten.
 
 ---
-
-# 🛑 Stoppen
-
-```txt
-bot stop
-```
-
-Of server-side:
-
-```bash
-CTRL + C
-```
-
----
-
-# ✅ Minimum testpakket
-
-Voor een snelle demo is dit genoeg:
-
-```txt
-/give Dynathi bread 32
-/give Dynathi stone_pickaxe 1
-/give Dynathi stone_axe 1
-/give Dynathi oak_planks 1024
-/give Dynathi oak_fence 256
-/give Dynathi cobblestone 256
-/give Dynathi chest 32
-/give Dynathi crafting_table 8
-
-bot waypoint set home
-bot waypoint set warehouse
-bot waypoint set farm
-bot waypoint set mine
-bot waypoint set lumberyard
-bot waypoint set outpost
-
-bot smart start
-bot smart colony on
-bot smart expansion on
-bot smart status
-```
-
-Veel plezier met je autonome DynathiSMP-kolonist 😎🔥
