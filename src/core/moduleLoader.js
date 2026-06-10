@@ -10,6 +10,7 @@ const building = require("../modules/building");
 const baseBuilder = require("../modules/baseBuilder");
 const villageBuilder = require("../modules/villageBuilder");
 const smartBrain = require("../modules/smartBrain");
+const smartBrainV8 = require("../modules/smartBrainV8");
 const itemframes = require("../modules/itemframes");
 const sleep = require("../modules/sleep");
 const aiBrain = require("../modules/aiBrain");
@@ -39,6 +40,7 @@ function loadModules() {
     baseBuilder,
     villageBuilder,
     smartBrain,
+    smartBrainV8,
     itemframes,
     sleep,
     aiBrain,
