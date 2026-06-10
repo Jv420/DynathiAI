@@ -161,6 +161,66 @@ async function containerTake(bot, names, label = "Container", itemName, count = 
   }
 }
 
+async function containerTakeMatching(bot, names, label = "Container", matcher, wantedCount = 64) {
+  if (storageBusy) return false;
+  storageBusy = true;
+  let container = null;
+
+  try {
+    container = await openNearestContainer(bot, names, label);
+    if (!container) return false;
+
+    let remaining = wantedCount || 64;
+    let moved = 0;
+
+    const items = container.containerItems().filter(Boolean).filter(item => matcher(item.name, item));
+    for (const item of items) {
+      if (remaining <= 0) break;
+      const takeCount = Math.min(remaining, item.count);
+      try {
+        await container.withdraw(item.type, null, takeCount);
+        moved += takeCount;
+        remaining -= takeCount;
+        await wait(150);
+      } catch (err) {
+        console.log(`${label} smart take error:`, err.message);
+      }
+    }
+
+    if (moved > 0) bot.chat(`📦 ${moved} items uit ${label} gepakt voor SmartBrain.`);
+    return moved > 0;
+  } finally {
+    try { if (container) container.close(); } catch {}
+    storageBusy = false;
+  }
+}
+
+async function takeFood(bot, names, label = "Container", count = 32) {
+  return containerTakeMatching(bot, names, label, name =>
+    name.includes("bread") ||
+    name.includes("apple") ||
+    name.includes("beef") ||
+    name.includes("chicken") ||
+    name.includes("porkchop") ||
+    name.includes("mutton") ||
+    name.includes("carrot") ||
+    name.includes("potato"),
+    count
+  );
+}
+
+async function takeWood(bot, names, label = "Container", count = 64) {
+  return containerTakeMatching(bot, names, label, name => name.includes("log") || name.includes("stem") || name.includes("planks"), count);
+}
+
+async function takeStone(bot, names, label = "Container", count = 64) {
+  return containerTakeMatching(bot, names, label, name => name.includes("cobblestone") || name === "stone" || name.includes("deepslate"), count);
+}
+
+async function takeBuildingSupplies(bot, names, label = "Container", count = 128) {
+  return containerTakeMatching(bot, names, label, name => name.includes("planks") || name.includes("fence") || name.includes("cobblestone") || name === "stone", count);
+}
+
 function getChestNames() {
   return ["chest", "trapped_chest"];
 }
@@ -175,6 +235,11 @@ module.exports = {
   containerStore,
   containerDump,
   containerTake,
+  containerTakeMatching,
+  takeFood,
+  takeWood,
+  takeStone,
+  takeBuildingSupplies,
   getChestNames,
   getShulkerNames
 };
