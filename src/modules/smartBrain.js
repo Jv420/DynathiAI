@@ -80,6 +80,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     role: "Idle",
     task: "Wachten",
     cooldowns: createCooldowns(),
+    storageMode: "multi-network",
     minimums: {
       food: Number(process.env.SMART_MIN_FOOD) || 16,
       logs: Number(process.env.SMART_MIN_LOGS) || 32,
@@ -157,6 +158,18 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     return true;
   }
 
+  function getStorageRoute(type) {
+    if (type === "food") return [state.farmWaypoint, state.warehouseWaypoint];
+    if (type === "wood") return [state.lumberWaypoint, state.warehouseWaypoint];
+    if (type === "stone") return [state.mineWaypoint, state.warehouseWaypoint];
+    if (type === "building") return [state.warehouseWaypoint, state.lumberWaypoint, state.territory.outpostWaypoint];
+    return [state.warehouseWaypoint];
+  }
+
+  function storageStatus() {
+    return `Storage mode: ${state.storageMode} | Food: ${getStorageRoute("food").join(" -> ")} | Wood: ${getStorageRoute("wood").join(" -> ")} | Stone: ${getStorageRoute("stone").join(" -> ")} | Building: ${getStorageRoute("building").join(" -> ")}`;
+  }
+
   function updateProject(snap) {
     if (!state.colony.enabled) return state.project = { active: "none", requiredPlanks: 0, progress: 0, status: "colony_off" };
     if (!state.colony.starterBuilt) return state.project = { active: "starter_base", requiredPlanks: 80, progress: snap.plankCount, status: snap.plankCount >= 80 ? "ready_to_build" : "collecting_planks" };
@@ -203,17 +216,28 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     return true;
   }
 
-  async function takeFromWarehouse(currentBot, type, count) {
+  async function takeFromStorageNetwork(currentBot, type, count) {
     if (!modules.storage) return false;
     if (jobManager) jobManager.stop(false);
-    setRole("Warehouse Manager", `Voorraad pakken: ${type}`);
-    await goWaypoint(currentBot, state.warehouseWaypoint);
-    await wait(1000);
+    setRole("Warehouse Manager", `Voorraad netwerk: ${type}`);
     const names = modules.storage.getChestNames();
-    if (type === "food" && modules.storage.takeFood) return modules.storage.takeFood(currentBot, names, "Warehouse", count || 32);
-    if (type === "wood" && modules.storage.takeWood) return modules.storage.takeWood(currentBot, names, "Warehouse", count || 64);
-    if (type === "stone" && modules.storage.takeStone) return modules.storage.takeStone(currentBot, names, "Warehouse", count || 64);
-    if (type === "building" && modules.storage.takeBuildingSupplies) return modules.storage.takeBuildingSupplies(currentBot, names, "Warehouse", count || 128);
+    const route = getStorageRoute(type);
+
+    for (const waypointName of route) {
+      if (!waypointName) continue;
+      say(`supply_route_${type}_${waypointName}`, `📦 Voorraad zoeken: ${type} bij ${waypointName}`, 60000);
+      await goWaypoint(currentBot, waypointName);
+      await wait(1000);
+      let took = false;
+      if (type === "food" && modules.storage.takeFood) took = await modules.storage.takeFood(currentBot, names, waypointName, count || 32);
+      if (type === "wood" && modules.storage.takeWood) took = await modules.storage.takeWood(currentBot, names, waypointName, count || 64);
+      if (type === "stone" && modules.storage.takeStone) took = await modules.storage.takeStone(currentBot, names, waypointName, count || 64);
+      if (type === "building" && modules.storage.takeBuildingSupplies) took = await modules.storage.takeBuildingSupplies(currentBot, names, waypointName, count || 128);
+      if (took) return true;
+      await wait(500);
+    }
+
+    say(`supply_empty_${type}`, `📦 Geen ${type} voorraad gevonden in storage netwerk.`, 60000);
     return false;
   }
 
@@ -244,15 +268,11 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     return true;
   }
 
-  function canBuild(snap, needed = 80) {
-    return modules.baseBuilder && snap.plankCount >= needed && snap.health > 12 && snap.food > 10 && snap.emptySlots >= 4;
-  }
-
   async function ensureBuildingSupplies(currentBot, snap, needed = 80) {
     if (snap.plankCount >= needed) return false;
     return runAction("supply_building", async () => {
-      say("supply_building", `🏭 Te weinig bouwmateriaal (${snap.plankCount}/${needed}). Ik check eerst warehouse.`, 60000);
-      await takeFromWarehouse(currentBot, "building", Math.max(needed - snap.plankCount, 64));
+      say("supply_building", `🏭 Te weinig bouwmateriaal (${snap.plankCount}/${needed}). Ik check storage netwerk.`, 60000);
+      await takeFromStorageNetwork(currentBot, "building", Math.max(needed - snap.plankCount, 64));
     });
   }
 
@@ -304,10 +324,10 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     if (!state.colony.enabled || project.active === "complete" || project.active === "none") return false;
     if (project.status !== "collecting_planks" && project.status !== "collecting_materials") return false;
     return runAction("project_plan", async () => {
-      const took = await takeFromWarehouse(currentBot, "building", Math.max(project.requiredPlanks - project.progress, 64));
+      const took = await takeFromStorageNetwork(currentBot, "building", Math.max(project.requiredPlanks - project.progress, 64));
       if (took) return;
       setRole("Lumberjack", `Materialen voor ${project.active}`);
-      say("project_collect", `📋 Project: ${project.active} | ${project.progress}/${project.requiredPlanks}. Warehouse leeg, ik verzamel hout.`, 60000);
+      say("project_collect", `📋 Project: ${project.active} | ${project.progress}/${project.requiredPlanks}. Storage netwerk leeg, ik verzamel hout.`, 60000);
       await goLumberyardAndChop(currentBot, currentMcData);
     });
   }
@@ -330,13 +350,13 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
       if (snap.emptySlots <= 2) return runAction("go_warehouse_store", async () => { say("inventory_full", "🎒 Inventory bijna vol. Naar warehouse.", 60000); await goWarehouseAndStore(currentBot); });
       if (!snap.hasPickaxe && modules.crafting?.craftQuick) return runAction("craft_pickaxe", async () => { setRole("Crafter", "Pickaxe maken"); await modules.crafting.craftQuick(currentBot, currentMcData, "stone_pickaxe", 1); });
       if (!snap.hasAxe && modules.crafting?.craftQuick) return runAction("craft_axe", async () => { setRole("Crafter", "Axe maken"); await modules.crafting.craftQuick(currentBot, currentMcData, "stone_axe", 1); });
-      if (snap.foodCount < state.minimums.food) return runAction("supply_food", async () => { say("food_low", `🌾 Voedsel laag: ${snap.foodCount}/${state.minimums.food}. Ik check eerst warehouse.`, 60000); const took = await takeFromWarehouse(currentBot, "food", 32); if (!took && modules.farming?.farm) await goFarmAndHarvest(currentBot, currentMcData); });
-      if (snap.stoneCount < state.minimums.stone && snap.hasPickaxe) return runAction("supply_stone", async () => { say("stone_low", `⛏️ Steen laag: ${snap.stoneCount}/${state.minimums.stone}. Ik check eerst warehouse.`, 60000); const took = await takeFromWarehouse(currentBot, "stone", 64); if (!took && modules.mining?.mineBlock) await goMineAndCollect(currentBot, currentMcData); });
+      if (snap.foodCount < state.minimums.food) return runAction("supply_food", async () => { say("food_low", `🌾 Voedsel laag: ${snap.foodCount}/${state.minimums.food}. Ik check farm -> warehouse.`, 60000); const took = await takeFromStorageNetwork(currentBot, "food", 32); if (!took && modules.farming?.farm) await goFarmAndHarvest(currentBot, currentMcData); });
+      if (snap.stoneCount < state.minimums.stone && snap.hasPickaxe) return runAction("supply_stone", async () => { say("stone_low", `⛏️ Steen laag: ${snap.stoneCount}/${state.minimums.stone}. Ik check mine -> warehouse.`, 60000); const took = await takeFromStorageNetwork(currentBot, "stone", 64); if (!took && modules.mining?.mineBlock) await goMineAndCollect(currentBot, currentMcData); });
       const colonyResult = await runColonyBuilder(currentBot, snap); if (colonyResult) return true;
       const expansionResult = await runExpansionBuilder(currentBot, snap); if (expansionResult) return true;
       const territoryResult = await runTerritoryBuilder(currentBot, snap); if (territoryResult) return true;
       const projectResult = await runProjectPlanner(currentBot, currentMcData, snap); if (projectResult) return true;
-      if (snap.logCount < state.minimums.logs && snap.hasAxe) return runAction("supply_wood", async () => { say("wood_low", `🌲 Hout laag: ${snap.logCount}/${state.minimums.logs}. Ik check eerst warehouse.`, 60000); const took = await takeFromWarehouse(currentBot, "wood", 64); if (!took && modules.woodcutting?.chopWood) await goLumberyardAndChop(currentBot, currentMcData); });
+      if (snap.logCount < state.minimums.logs && snap.hasAxe) return runAction("supply_wood", async () => { say("wood_low", `🌲 Hout laag: ${snap.logCount}/${state.minimums.logs}. Ik check lumberyard -> warehouse.`, 60000); const took = await takeFromStorageNetwork(currentBot, "wood", 64); if (!took && modules.woodcutting?.chopWood) await goLumberyardAndChop(currentBot, currentMcData); });
       setRole("Colonist", "Onderhoud en wachten");
       state.lastSkipped = "none";
       return true;
@@ -390,6 +410,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
       `Planks: ${snap.plankCount}`,
       `Fences: ${snap.fenceCount}`,
       `Stone stock: ${snap.stoneCount}/${state.minimums.stone}`,
+      storageStatus(),
       colonyStatus(),
       `Home: ${state.homeWaypoint}`,
       `Warehouse: ${state.warehouseWaypoint}`,
@@ -425,6 +446,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     stop,
     status,
     colonyStatus,
+    storageStatus,
     colonyOn,
     colonyOff,
     expansionOn,
