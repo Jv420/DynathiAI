@@ -23,6 +23,7 @@ const auctionAI = require("../modules/auctionAI");
 const waypoints = require("../modules/waypoints");
 const cooking = require("../modules/cooking");
 const roadNetwork = require("../modules/roadNetwork");
+const foodChain = require("../modules/foodChain");
 
 function loadModules() {
   return {
@@ -50,7 +51,8 @@ function loadModules() {
     auctionAI,
     waypoints,
     cooking,
-    roadNetwork
+    roadNetwork,
+    foodChain
   };
 }
 
