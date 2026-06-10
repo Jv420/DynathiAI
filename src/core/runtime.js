@@ -5,6 +5,7 @@ const { createBrainLoop } = require("../modules/aiBrain");
 const { createAutonomousMode } = require("../modules/autonomous");
 const { createVillageBuilder } = require("../modules/villageBuilder");
 const { createSmartBrain } = require("../modules/smartBrain");
+const { createSmartBrainV8 } = require("../modules/smartBrainV8");
 
 function createRuntime() {
   const logger = createLogger();
@@ -51,11 +52,12 @@ function createRuntime() {
 
   const villageBuilder = createVillageBuilder({
     bot: getBot,
+    mcData: getMcData,
     modules,
     log: logger.log
   });
 
-  const smartBrain = createSmartBrain({
+  const legacySmartBrain = createSmartBrain({
     bot: getBot,
     mcData: getMcData,
     modules,
@@ -64,6 +66,18 @@ function createRuntime() {
     villageBuilder,
     log: logger.log
   });
+
+  const smartBrain = process.env.SMART_BRAIN_VERSION === "legacy"
+    ? legacySmartBrain
+    : createSmartBrainV8({
+        bot: getBot,
+        mcData: getMcData,
+        modules,
+        jobManager,
+        autonomous,
+        villageBuilder,
+        log: logger.log
+      });
 
   function setBot(bot) {
     state.bot = bot;
@@ -81,6 +95,7 @@ function createRuntime() {
     brain,
     autonomous,
     villageBuilder,
+    legacySmartBrain,
     smartBrain,
     getBot,
     getMcData,
