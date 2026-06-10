@@ -8,7 +8,17 @@ const CATEGORIES = {
   tools: ["pickaxe", "axe", "shovel", "sword", "hoe", "bow", "shield", "fishing_rod"],
   farming: ["seed", "wheat", "carrot", "potato", "beetroot", "sugar_cane", "pumpkin", "melon"],
   valuables: ["diamond", "emerald", "netherite", "gold", "iron", "lapis", "redstone"],
-  building: ["fence", "chest", "crafting_table", "door", "stairs", "slab", "glass", "torch"]
+  building: ["fence", "chest", "crafting_table", "door", "stairs", "slab", "glass", "torch", "cobblestone"]
+};
+
+const ROUTES = {
+  food: ["farm", "warehouse", "home"],
+  wood: ["lumberyard", "warehouse", "home"],
+  stone: ["mine", "warehouse", "home"],
+  building: ["warehouse", "lumberyard", "mine", "home"],
+  ores: ["mine", "warehouse", "home"],
+  farming: ["farm", "warehouse", "home"],
+  misc: ["warehouse", "home"]
 };
 
 function getItemCategory(itemName) {
@@ -34,6 +44,22 @@ function countCategory(bot, category) {
   return (grouped[category] || []).reduce((sum, item) => sum + item.count, 0);
 }
 
+async function goWaypoint(bot, modules, name) {
+  if (!name || !modules?.waypoints?.goToWaypoint) return false;
+  try {
+    await modules.waypoints.goToWaypoint(bot, name);
+    await wait(900);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function scanNearestChest(bot, storageModule, label = "Warehouse") {
+  if (!storageModule?.openNearestContainer) return null;
+  return storageModule.openNearestContainer(bot, storageModule.getChestNames(), label);
+}
+
 function supplyReport(bot) {
   const grouped = inventoryByCategory(bot);
   const wanted = { food: 32, wood: 64, stone: 128, building: 64, ores: 16 };
@@ -44,35 +70,49 @@ function supplyReport(bot) {
   return `📦 Supply report | ${lines.join(" | ")}`;
 }
 
-async function storeCategory(bot, storageModule, category = "misc") {
-  if (!bot || !bot.entity) return false;
-  if (!storageModule?.containerStoreMatching) return smartStore(bot, storageModule);
-  return storageModule.containerStoreMatching(bot, storageModule.getChestNames(), `Warehouse ${category}`, itemName => getItemCategory(itemName) === category);
+async function storeCategory(bot, storageModule, category = "misc", modules = null) {
+  if (!bot || !bot.entity || !storageModule?.containerStoreMatching) return false;
+  const routes = modules ? (ROUTES[category] || ROUTES.misc) : [null];
+  for (const waypoint of routes) {
+    if (waypoint) await goWaypoint(bot, modules, waypoint);
+    const ok = await storageModule.containerStoreMatching(bot, storageModule.getChestNames(), waypoint || `Warehouse ${category}`, itemName => getItemCategory(itemName) === category);
+    if (ok) return true;
+    await wait(300);
+  }
+  return false;
 }
 
-async function smartStore(bot, storageModule) {
+async function smartStore(bot, storageModule, modules = null) {
   if (!bot || !bot.entity || !storageModule?.containerStore) return false;
+  if (modules?.waypoints?.goToWaypoint) await goWaypoint(bot, modules, "warehouse");
   return storageModule.containerStore(bot, storageModule.getChestNames(), "Warehouse Chest");
 }
 
-async function takeCategory(bot, storageModule, category = "food", count = 64) {
+async function takeCategory(bot, storageModule, category = "food", count = 64, modules = null) {
   if (!bot || !bot.entity || !storageModule?.containerTakeMatching) return false;
-  return storageModule.containerTakeMatching(bot, storageModule.getChestNames(), `Warehouse ${category}`, itemName => getItemCategory(itemName) === category, Number(count) || 64);
+  const routes = modules ? (ROUTES[category] || ROUTES.misc) : [null];
+  for (const waypoint of routes) {
+    if (waypoint) await goWaypoint(bot, modules, waypoint);
+    const ok = await storageModule.containerTakeMatching(bot, storageModule.getChestNames(), waypoint || `Warehouse ${category}`, itemName => getItemCategory(itemName) === category, Number(count) || 64);
+    if (ok) return true;
+    await wait(300);
+  }
+  return false;
 }
 
-async function requestSupply(bot, storageModule, category = "food", count = 64) {
-  const ok = await takeCategory(bot, storageModule, category, count);
+async function requestSupply(bot, storageModule, category = "food", count = 64, modules = null) {
+  const ok = await takeCategory(bot, storageModule, category, count, modules);
   if (ok) bot.chat(`📦 Supply request gevuld: ${category} x${count}`);
   else bot.chat(`❌ Supply request mislukt: ${category}`);
   return ok;
 }
 
-async function sortInventory(bot, storageModule) {
+async function sortInventory(bot, storageModule, modules = null) {
   if (!bot || !bot.entity || !storageModule) return false;
   const order = ["food", "wood", "stone", "building", "ores", "farming", "misc"];
   let moved = 0;
   for (const category of order) {
-    const ok = await storeCategory(bot, storageModule, category);
+    const ok = await storeCategory(bot, storageModule, category, modules);
     if (ok) moved++;
     await wait(250);
   }
@@ -89,4 +129,4 @@ function warehouseReport(bot) {
   return lines.length ? `📦 Warehouse report | ${lines.join(" | ")}` : "📦 Inventory is leeg.";
 }
 
-module.exports = { CATEGORIES, getItemCategory, inventoryByCategory, countCategory, supplyReport, storeCategory, smartStore, takeCategory, requestSupply, sortInventory, warehouseReport };
+module.exports = { CATEGORIES, ROUTES, getItemCategory, inventoryByCategory, countCategory, supplyReport, scanNearestChest, storeCategory, smartStore, takeCategory, requestSupply, sortInventory, warehouseReport };
