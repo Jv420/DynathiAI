@@ -5,41 +5,19 @@ let storageBusy = false;
 
 function findNearestContainer(bot, names, maxDistance = 5) {
   if (!bot || !bot.entity) return null;
-
-  const positions = bot.findBlocks({
-    matching: block => block && names.includes(block.name),
-    maxDistance,
-    count: 10
-  });
-
+  const positions = bot.findBlocks({ matching: block => block && names.includes(block.name), maxDistance, count: 10 });
   if (!positions.length) return null;
-
-  const sorted = positions
-    .map(pos => bot.blockAt(pos))
-    .filter(Boolean)
-    .sort((a, b) => a.position.distanceTo(bot.entity.position) - b.position.distanceTo(bot.entity.position));
-
-  return sorted[0] || null;
+  return positions.map(pos => bot.blockAt(pos)).filter(Boolean).sort((a, b) => a.position.distanceTo(bot.entity.position) - b.position.distanceTo(bot.entity.position))[0] || null;
 }
 
 async function openNearestContainer(bot, names, label = "Container") {
   const block = findNearestContainer(bot, names);
-
-  if (!block) {
-    bot.chat(`❌ Geen ${label} dichtbij gevonden.`);
-    return null;
-  }
-
+  if (!block) { bot.chat(`❌ Geen ${label} dichtbij gevonden.`); return null; }
   try {
     bot.pathfinder.setGoal(new goals.GoalNear(block.position.x, block.position.y, block.position.z, 2));
     await wait(1200);
-
     const freshBlock = bot.blockAt(block.position);
-    if (!freshBlock || !names.includes(freshBlock.name)) {
-      bot.chat(`❌ ${label} is niet meer geldig of niet geladen.`);
-      return null;
-    }
-
+    if (!freshBlock || !names.includes(freshBlock.name)) { bot.chat(`❌ ${label} is niet meer geldig of niet geladen.`); return null; }
     return await bot.openContainer(freshBlock);
   } catch (err) {
     bot.chat(`❌ ${label} openen mislukt: ${err.message}`);
@@ -48,43 +26,32 @@ async function openNearestContainer(bot, names, label = "Container") {
 }
 
 async function containerStore(bot, names, label = "Container") {
-  if (storageBusy) {
-    bot.chat(`⏳ ${label} opslag is al bezig.`);
-    return false;
-  }
+  return containerStoreMatching(bot, names, label, () => true);
+}
 
+async function containerStoreMatching(bot, names, label = "Container", matcher = () => true) {
+  if (storageBusy) { bot.chat(`⏳ ${label} opslag is al bezig.`); return false; }
   storageBusy = true;
   let container = null;
-
   try {
     container = await openNearestContainer(bot, names, label);
     if (!container) return false;
-
-    const items = bot.inventory.items()
-      .filter(Boolean)
-      .filter(item => item.type && item.count > 0)
-      .filter(item => !isProtectedItem(item));
-
+    const items = bot.inventory.items().filter(Boolean).filter(item => item.type && item.count > 0).filter(item => !isProtectedItem(item)).filter(item => matcher(item.name, item));
     let moved = 0;
-
     for (const item of items) {
       if (!bot || !bot.entity || !container) break;
       const stillHasItem = bot.inventory.items().find(i => i && i.type === item.type);
       if (!stillHasItem) continue;
-
       try {
         await container.deposit(stillHasItem.type, null, stillHasItem.count);
         moved++;
-        await wait(150);
+        await wait(250 + Math.floor(Math.random() * 350));
       } catch (err) {
         const msg = err?.message || "unknown";
-        if (!msg.includes("Can't find") && !msg.includes("invalid operation")) {
-          console.log(`${label} store error:`, msg);
-        }
+        if (!msg.includes("Can't find") && !msg.includes("invalid operation")) console.log(`${label} store error:`, msg);
       }
     }
-
-    bot.chat(`📦 ${label} store klaar: ${moved} stacks opgeslagen.`);
+    if (moved > 0) bot.chat(`📦 ${label} store klaar: ${moved} stacks opgeslagen.`);
     return moved > 0;
   } catch (err) {
     console.log(`${label} store fatal:`, err.message);
@@ -96,32 +63,17 @@ async function containerStore(bot, names, label = "Container") {
 }
 
 async function containerDump(bot, names, label = "Container") {
-  if (storageBusy) {
-    bot.chat(`⏳ ${label} opslag is al bezig.`);
-    return false;
-  }
-
+  if (storageBusy) { bot.chat(`⏳ ${label} opslag is al bezig.`); return false; }
   storageBusy = true;
   let container = null;
-
   try {
     container = await openNearestContainer(bot, names, label);
     if (!container) return false;
-
     const items = container.containerItems().filter(Boolean);
     let moved = 0;
-
     for (const item of items) {
-      if (!bot || !bot.entity || !container) break;
-      try {
-        await container.withdraw(item.type, null, item.count);
-        moved++;
-        await wait(150);
-      } catch (err) {
-        console.log(`${label} dump error:`, err.message);
-      }
+      try { await container.withdraw(item.type, null, item.count); moved++; await wait(250); } catch (err) { console.log(`${label} dump error:`, err.message); }
     }
-
     bot.chat(`📦 ${label} dump klaar: ${moved} stacks gepakt.`);
     return moved > 0;
   } finally {
@@ -131,24 +83,13 @@ async function containerDump(bot, names, label = "Container") {
 }
 
 async function containerTake(bot, names, label = "Container", itemName, count = 64) {
-  if (!itemName) {
-    bot.chat("Gebruik: take <item> <aantal>");
-    return false;
-  }
-
+  if (!itemName) { bot.chat("Gebruik: take <item> <aantal>"); return false; }
   let container = null;
-
   try {
     container = await openNearestContainer(bot, names, label);
     if (!container) return false;
-
     const item = container.containerItems().filter(Boolean).find(i => i.name.includes(itemName));
-
-    if (!item) {
-      bot.chat(`❌ ${itemName} niet gevonden in ${label}.`);
-      return false;
-    }
-
+    if (!item) { bot.chat(`❌ ${itemName} niet gevonden in ${label}.`); return false; }
     const takeCount = Math.min(count || 64, item.count);
     await container.withdraw(item.type, null, takeCount);
     bot.chat(`📦 ${takeCount}x ${item.name} uit ${label} gepakt.`);
@@ -156,90 +97,43 @@ async function containerTake(bot, names, label = "Container", itemName, count = 
   } catch (err) {
     bot.chat(`❌ Take mislukt: ${err.message}`);
     return false;
-  } finally {
-    try { if (container) container.close(); } catch {}
-  }
+  } finally { try { if (container) container.close(); } catch {} }
 }
 
 async function containerTakeMatching(bot, names, label = "Container", matcher, wantedCount = 64) {
   if (storageBusy) return false;
   storageBusy = true;
   let container = null;
-
   try {
     container = await openNearestContainer(bot, names, label);
     if (!container) return false;
-
     let remaining = wantedCount || 64;
     let moved = 0;
-
     const items = container.containerItems().filter(Boolean).filter(item => matcher(item.name, item));
     for (const item of items) {
       if (remaining <= 0) break;
       const takeCount = Math.min(remaining, item.count);
-      try {
-        await container.withdraw(item.type, null, takeCount);
-        moved += takeCount;
-        remaining -= takeCount;
-        await wait(150);
-      } catch (err) {
-        console.log(`${label} smart take error:`, err.message);
-      }
+      try { await container.withdraw(item.type, null, takeCount); moved += takeCount; remaining -= takeCount; await wait(250); } catch (err) { console.log(`${label} smart take error:`, err.message); }
     }
-
     if (moved > 0) bot.chat(`📦 ${moved} items uit ${label} gepakt voor SmartBrain.`);
     return moved > 0;
-  } finally {
-    try { if (container) container.close(); } catch {}
-    storageBusy = false;
-  }
+  } finally { try { if (container) container.close(); } catch {}; storageBusy = false; }
 }
 
-async function takeFood(bot, names, label = "Container", count = 32) {
-  return containerTakeMatching(bot, names, label, name =>
-    name.includes("bread") ||
-    name.includes("apple") ||
-    name.includes("beef") ||
-    name.includes("chicken") ||
-    name.includes("porkchop") ||
-    name.includes("mutton") ||
-    name.includes("carrot") ||
-    name.includes("potato"),
-    count
-  );
-}
+const isFood = name => name.includes("bread") || name.includes("apple") || name.includes("beef") || name.includes("chicken") || name.includes("porkchop") || name.includes("mutton") || name.includes("carrot") || name.includes("potato") || name.includes("wheat") || name.includes("seed");
+const isWood = name => name.includes("log") || name.includes("stem") || name.includes("planks") || name.includes("sapling");
+const isStone = name => name.includes("cobblestone") || name === "stone" || name.includes("deepslate") || name.includes("ore") || name.includes("coal") || name.includes("iron") || name.includes("copper") || name.includes("gold") || name.includes("redstone") || name.includes("lapis");
+const isBuilding = name => name.includes("fence") || name.includes("chest") || name.includes("crafting_table") || name.includes("door") || name.includes("stairs") || name.includes("slab") || name.includes("glass") || name.includes("torch");
 
-async function takeWood(bot, names, label = "Container", count = 64) {
-  return containerTakeMatching(bot, names, label, name => name.includes("log") || name.includes("stem") || name.includes("planks"), count);
-}
+async function storeFood(bot, names, label = "Farm") { return containerStoreMatching(bot, names, label, isFood); }
+async function storeWood(bot, names, label = "Lumberyard") { return containerStoreMatching(bot, names, label, isWood); }
+async function storeStone(bot, names, label = "Mine") { return containerStoreMatching(bot, names, label, isStone); }
+async function storeBuildingSupplies(bot, names, label = "Warehouse") { return containerStoreMatching(bot, names, label, isBuilding); }
+async function takeFood(bot, names, label = "Container", count = 32) { return containerTakeMatching(bot, names, label, isFood, count); }
+async function takeWood(bot, names, label = "Container", count = 64) { return containerTakeMatching(bot, names, label, isWood, count); }
+async function takeStone(bot, names, label = "Container", count = 64) { return containerTakeMatching(bot, names, label, isStone, count); }
+async function takeBuildingSupplies(bot, names, label = "Container", count = 128) { return containerTakeMatching(bot, names, label, name => isBuilding(name) || name.includes("planks") || name.includes("cobblestone") || name === "stone", count); }
+function getChestNames() { return ["chest", "trapped_chest"]; }
+function getShulkerNames(mcData) { return Object.keys(mcData.blocksByName).filter(name => name.includes("shulker_box")); }
 
-async function takeStone(bot, names, label = "Container", count = 64) {
-  return containerTakeMatching(bot, names, label, name => name.includes("cobblestone") || name === "stone" || name.includes("deepslate"), count);
-}
-
-async function takeBuildingSupplies(bot, names, label = "Container", count = 128) {
-  return containerTakeMatching(bot, names, label, name => name.includes("planks") || name.includes("fence") || name.includes("cobblestone") || name === "stone", count);
-}
-
-function getChestNames() {
-  return ["chest", "trapped_chest"];
-}
-
-function getShulkerNames(mcData) {
-  return Object.keys(mcData.blocksByName).filter(name => name.includes("shulker_box"));
-}
-
-module.exports = {
-  findNearestContainer,
-  openNearestContainer,
-  containerStore,
-  containerDump,
-  containerTake,
-  containerTakeMatching,
-  takeFood,
-  takeWood,
-  takeStone,
-  takeBuildingSupplies,
-  getChestNames,
-  getShulkerNames
-};
+module.exports = { findNearestContainer, openNearestContainer, containerStore, containerStoreMatching, containerDump, containerTake, containerTakeMatching, storeFood, storeWood, storeStone, storeBuildingSupplies, takeFood, takeWood, takeStone, takeBuildingSupplies, getChestNames, getShulkerNames };
