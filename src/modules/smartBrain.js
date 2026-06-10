@@ -5,24 +5,24 @@ function countInventory(bot) {
 }
 
 function countItems(bot, matcher) {
-  return bot.inventory.items()
-    .filter(item => matcher(item.name))
-    .reduce((total, item) => total + item.count, 0);
+  return bot.inventory.items().filter(item => matcher(item.name)).reduce((total, item) => total + item.count, 0);
 }
 
 function hasItem(bot, matcher) {
   return bot.inventory.items().some(item => matcher(item.name));
 }
 
+function randomBetween(min, max) {
+  return Math.floor(min + Math.random() * (max - min + 1));
+}
+
 function getSnapshot(bot) {
   if (!bot || !bot.entity) return null;
-
   const foodCount = countItems(bot, name => name.includes("bread") || name.includes("apple") || name.includes("beef") || name.includes("chicken") || name.includes("porkchop") || name.includes("mutton") || name.includes("carrot") || name.includes("potato"));
   const logCount = countItems(bot, name => name.includes("log") || name.includes("stem"));
   const plankCount = countItems(bot, name => name.includes("planks"));
   const fenceCount = countItems(bot, name => name.includes("fence"));
   const stoneCount = countItems(bot, name => name.includes("cobblestone") || name === "stone" || name.includes("deepslate"));
-
   return {
     health: bot.health,
     food: bot.food,
@@ -81,43 +81,13 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     role: "Idle",
     task: "Wachten",
     cooldowns: createCooldowns(),
-    storageMode: "multi-network + auto-logistics",
-    logistics: {
-      enabled: process.env.SMART_LOGISTICS_ENABLED !== "false",
-      lastRoute: "none",
-      movedRuns: 0
-    },
-    minimums: {
-      food: Number(process.env.SMART_MIN_FOOD) || 16,
-      logs: Number(process.env.SMART_MIN_LOGS) || 32,
-      stone: Number(process.env.SMART_MIN_STONE) || 64
-    },
-    colony: {
-      enabled: process.env.SMART_COLONY_ENABLED !== "false",
-      starterBuilt: false,
-      farmBuilt: false,
-      warehouseBuilt: false,
-      towerBuilt: false
-    },
-    expansion: {
-      enabled: process.env.SMART_EXPANSION_ENABLED !== "false",
-      animalPenBuilt: false,
-      extraFarmBuilt: false,
-      extraStorageBuilt: false
-    },
-    territory: {
-      enabled: process.env.SMART_TERRITORY_ENABLED !== "false",
-      outpostWaypoint: process.env.SMART_OUTPOST_WAYPOINT || "outpost",
-      outpostBuilt: false,
-      outpostFarmBuilt: false,
-      outpostStorageBuilt: false
-    },
-    project: {
-      active: "none",
-      requiredPlanks: 0,
-      progress: 0,
-      status: "idle"
-    },
+    storageMode: "multi-network + auto-logistics + multi-stop",
+    logistics: { enabled: process.env.SMART_LOGISTICS_ENABLED !== "false", lastRoute: "none", movedRuns: 0, stops: 0 },
+    minimums: { food: Number(process.env.SMART_MIN_FOOD) || 16, logs: Number(process.env.SMART_MIN_LOGS) || 32, stone: Number(process.env.SMART_MIN_STONE) || 64 },
+    colony: { enabled: process.env.SMART_COLONY_ENABLED !== "false", starterBuilt: false, farmBuilt: false, warehouseBuilt: false, towerBuilt: false },
+    expansion: { enabled: process.env.SMART_EXPANSION_ENABLED !== "false", animalPenBuilt: false, extraFarmBuilt: false, extraStorageBuilt: false },
+    territory: { enabled: process.env.SMART_TERRITORY_ENABLED !== "false", outpostWaypoint: process.env.SMART_OUTPOST_WAYPOINT || "outpost", outpostBuilt: false, outpostFarmBuilt: false, outpostStorageBuilt: false },
+    project: { active: "none", requiredPlanks: 0, progress: 0, status: "idle" },
     homeWaypoint: process.env.SMART_HOME_WAYPOINT || "home",
     warehouseWaypoint: process.env.SMART_WAREHOUSE_WAYPOINT || "warehouse",
     farmWaypoint: process.env.SMART_FARM_WAYPOINT || "farm",
@@ -135,34 +105,22 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     return true;
   }
 
-  function setRole(role, task) {
-    state.role = role;
-    state.task = task;
-    state.lastAction = `${role}: ${task}`;
+  async function humanPause(min = 700, max = 2200) {
+    const currentBot = bot();
+    if (currentBot?.entity && Math.random() < 0.45) {
+      try { currentBot.look(randomBetween(-180, 180) * Math.PI / 180, randomBetween(-20, 30) * Math.PI / 180, true); } catch {}
+    }
+    if (currentBot?.entity && Math.random() < 0.08) {
+      try { currentBot.setControlState("jump", true); await wait(randomBetween(120, 220)); currentBot.setControlState("jump", false); } catch {}
+    }
+    await wait(randomBetween(min, max));
   }
 
-  function canRun(action) {
-    const cooldown = state.cooldowns[action] || 0;
-    const last = state.actionTimes[action] || 0;
-    return Date.now() - last >= cooldown;
-  }
-
-  function mark(action) {
-    state.actionTimes[action] = Date.now();
-    state.lastAction = action;
-  }
-
-  function skip(action) {
-    state.lastSkipped = action;
-    return false;
-  }
-
-  async function runAction(action, fn) {
-    if (!canRun(action)) return skip(`${action}_cooldown`);
-    mark(action);
-    await fn();
-    return true;
-  }
+  function setRole(role, task) { state.role = role; state.task = task; state.lastAction = `${role}: ${task}`; }
+  function canRun(action) { return Date.now() - (state.actionTimes[action] || 0) >= (state.cooldowns[action] || 0); }
+  function mark(action) { state.actionTimes[action] = Date.now(); state.lastAction = action; }
+  function skip(action) { state.lastSkipped = action; return false; }
+  async function runAction(action, fn) { if (!canRun(action)) return skip(`${action}_cooldown`); mark(action); await fn(); return true; }
 
   function getStorageRoute(type) {
     if (type === "food") return [state.farmWaypoint, state.warehouseWaypoint];
@@ -173,14 +131,14 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
   }
 
   function storageStatus() {
-    return `Storage mode: ${state.storageMode} | Logistics: ${state.logistics.enabled ? "aan" : "uit"} | Last logistics: ${state.logistics.lastRoute} | Runs: ${state.logistics.movedRuns} | Food: ${getStorageRoute("food").join(" -> ")} | Wood: ${getStorageRoute("wood").join(" -> ")} | Stone: ${getStorageRoute("stone").join(" -> ")} | Building: ${getStorageRoute("building").join(" -> ")}`;
+    return `Storage mode: ${state.storageMode} | Logistics: ${state.logistics.enabled ? "aan" : "uit"} | Last logistics: ${state.logistics.lastRoute} | Runs: ${state.logistics.movedRuns} | Stops: ${state.logistics.stops} | Food: ${getStorageRoute("food").join(" -> ")} | Wood: ${getStorageRoute("wood").join(" -> ")} | Stone: ${getStorageRoute("stone").join(" -> ")} | Building: ${getStorageRoute("building").join(" -> ")}`;
   }
 
   function classifyItem(name) {
     if (name.includes("bread") || name.includes("apple") || name.includes("beef") || name.includes("chicken") || name.includes("porkchop") || name.includes("mutton") || name.includes("carrot") || name.includes("potato") || name.includes("wheat") || name.includes("seed")) return "food";
     if (name.includes("log") || name.includes("stem") || name.includes("planks") || name.includes("sapling")) return "wood";
     if (name.includes("cobblestone") || name === "stone" || name.includes("deepslate") || name.includes("ore") || name.includes("coal") || name.includes("iron") || name.includes("copper") || name.includes("gold") || name.includes("redstone") || name.includes("lapis")) return "stone";
-    if (name.includes("fence") || name.includes("chest") || name.includes("crafting_table") || name.includes("door") || name.includes("stairs") || name.includes("slab") || name.includes("glass")) return "building";
+    if (name.includes("fence") || name.includes("chest") || name.includes("crafting_table") || name.includes("door") || name.includes("stairs") || name.includes("slab") || name.includes("glass") || name.includes("torch")) return "building";
     return "warehouse";
   }
 
@@ -224,10 +182,23 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
   async function goWaypoint(currentBot, waypointName) {
     if (!modules.waypoints?.goToWaypoint) return false;
     say(`goto_${waypointName}`, `📍 Ik ga naar waypoint: ${waypointName}`, 45000);
+    await humanPause(300, 1200);
     return modules.waypoints.goToWaypoint(currentBot, waypointName);
   }
 
   async function goHome(currentBot) { return goWaypoint(currentBot, state.homeWaypoint); }
+
+  async function storeCategoryAt(currentBot, category, waypointName) {
+    if (!modules.storage?.containerStoreMatching) return false;
+    await goWaypoint(currentBot, waypointName);
+    await humanPause(800, 1800);
+    const names = modules.storage.getChestNames();
+    if (category === "food" && modules.storage.storeFood) return modules.storage.storeFood(currentBot, names, waypointName);
+    if (category === "wood" && modules.storage.storeWood) return modules.storage.storeWood(currentBot, names, waypointName);
+    if (category === "stone" && modules.storage.storeStone) return modules.storage.storeStone(currentBot, names, waypointName);
+    if (category === "building" && modules.storage.storeBuildingSupplies) return modules.storage.storeBuildingSupplies(currentBot, names, waypointName);
+    return modules.storage.containerStoreMatching(currentBot, names, waypointName, itemName => classifyItem(itemName) === "warehouse");
+  }
 
   async function storeAllAt(currentBot, waypointName, label) {
     if (!modules.storage?.containerStore) return false;
@@ -240,28 +211,31 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     if (!state.logistics.enabled || !modules.storage?.containerStore) return false;
     return runAction("auto_logistics", async () => {
       if (jobManager) jobManager.stop(false);
-      setRole("Logistics Manager", "Items sorteren naar opslagnetwerk");
-      const items = currentBot.inventory.items().filter(Boolean);
-      const categories = new Set(items.map(item => classifyItem(item.name)));
+      setRole("Logistics Manager", "Multi-stop opslagroute rijden");
       const priority = ["food", "wood", "stone", "building", "warehouse"];
-      const firstCategory = priority.find(cat => categories.has(cat)) || "warehouse";
-      const target = getLogisticsTarget(firstCategory);
-      state.logistics.lastRoute = `${firstCategory} -> ${target}`;
+      const planned = [];
+      for (const category of priority) {
+        if (currentBot.inventory.items().some(item => classifyItem(item.name) === category)) planned.push(category);
+      }
+      if (!planned.length) return;
+      say("auto_logistics_plan", `🚚 Logistics route: ${planned.map(c => `${c}->${getLogisticsTarget(c)}`).join(" | ")}`, 60000);
+      let stops = 0;
+      for (const category of planned) {
+        if (!currentBot.entity || currentBot.inventory.emptySlotCount() >= 30) break;
+        if (!currentBot.inventory.items().some(item => classifyItem(item.name) === category)) continue;
+        const target = getLogisticsTarget(category);
+        state.logistics.lastRoute = `${category} -> ${target}`;
+        say(`logistics_stop_${category}`, `🚚 Stop ${stops + 1}: ${category} naar ${target}.`, 60000);
+        const moved = await storeCategoryAt(currentBot, category, target);
+        if (moved) { stops++; state.logistics.stops++; await humanPause(1000, 2800); }
+      }
+      if (currentBot.inventory.emptySlotCount() <= 8) await storeAllAt(currentBot, state.warehouseWaypoint, "Warehouse overflow");
       state.logistics.movedRuns++;
-      say("auto_logistics", `🚚 Logistics: ${firstCategory} naar ${target}.`, 60000);
-      await storeAllAt(currentBot, target, `Logistics ${target}`);
+      state.logistics.lastRoute = `${stops} stops afgerond`;
     });
   }
 
-  async function goWarehouseAndStore(currentBot) {
-    if (state.logistics.enabled) return autoLogistics(currentBot);
-    if (jobManager) jobManager.stop(false);
-    setRole("Warehouse Manager", "Opslaan in warehouse");
-    await goWaypoint(currentBot, state.warehouseWaypoint);
-    await wait(1000);
-    if (modules.storage?.containerStore) await modules.storage.containerStore(currentBot, modules.storage.getChestNames(), "Warehouse");
-    return true;
-  }
+  async function goWarehouseAndStore(currentBot) { if (state.logistics.enabled) return autoLogistics(currentBot); return storeAllAt(currentBot, state.warehouseWaypoint, "Warehouse"); }
 
   async function takeFromStorageNetwork(currentBot, type, count) {
     if (!modules.storage) return false;
@@ -269,68 +243,34 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     setRole("Warehouse Manager", `Voorraad netwerk: ${type}`);
     const names = modules.storage.getChestNames();
     const route = getStorageRoute(type);
-
     for (const waypointName of route) {
       if (!waypointName) continue;
       say(`supply_route_${type}_${waypointName}`, `📦 Voorraad zoeken: ${type} bij ${waypointName}`, 60000);
       await goWaypoint(currentBot, waypointName);
-      await wait(1000);
+      await humanPause(700, 1700);
       let took = false;
       if (type === "food" && modules.storage.takeFood) took = await modules.storage.takeFood(currentBot, names, waypointName, count || 32);
       if (type === "wood" && modules.storage.takeWood) took = await modules.storage.takeWood(currentBot, names, waypointName, count || 64);
       if (type === "stone" && modules.storage.takeStone) took = await modules.storage.takeStone(currentBot, names, waypointName, count || 64);
       if (type === "building" && modules.storage.takeBuildingSupplies) took = await modules.storage.takeBuildingSupplies(currentBot, names, waypointName, count || 128);
       if (took) return true;
-      await wait(500);
+      await humanPause(500, 1400);
     }
-
     say(`supply_empty_${type}`, `📦 Geen ${type} voorraad gevonden in storage netwerk.`, 60000);
     return false;
   }
 
-  async function goFarmAndHarvest(currentBot, currentMcData) {
-    if (jobManager) jobManager.stop(false);
-    setRole("Farmer", "Farmen bij farm waypoint");
-    await goWaypoint(currentBot, state.farmWaypoint);
-    await wait(1000);
-    if (modules.farming?.farm) await modules.farming.farm(currentBot, currentMcData, "wheat", 8);
-    return true;
-  }
+  async function goFarmAndHarvest(currentBot, currentMcData) { if (jobManager) jobManager.stop(false); setRole("Farmer", "Farmen bij farm waypoint"); await goWaypoint(currentBot, state.farmWaypoint); await humanPause(); if (modules.farming?.farm) await modules.farming.farm(currentBot, currentMcData, "wheat", 8); return true; }
+  async function goMineAndCollect(currentBot, currentMcData) { if (jobManager) jobManager.stop(false); setRole("Miner", "Steen verzamelen"); await goWaypoint(currentBot, state.mineWaypoint); await humanPause(); if (modules.mining?.mineBlock) await modules.mining.mineBlock(currentBot, currentMcData, "stone", 12); return true; }
+  async function goLumberyardAndChop(currentBot, currentMcData) { if (jobManager) jobManager.stop(false); setRole("Lumberjack", "Hout verzamelen"); await goWaypoint(currentBot, state.lumberWaypoint); await humanPause(); if (modules.woodcutting?.chopWood) await modules.woodcutting.chopWood(currentBot, currentMcData, 10); return true; }
 
-  async function goMineAndCollect(currentBot, currentMcData) {
-    if (jobManager) jobManager.stop(false);
-    setRole("Miner", "Steen verzamelen");
-    await goWaypoint(currentBot, state.mineWaypoint);
-    await wait(1000);
-    if (modules.mining?.mineBlock) await modules.mining.mineBlock(currentBot, currentMcData, "stone", 12);
-    return true;
-  }
-
-  async function goLumberyardAndChop(currentBot, currentMcData) {
-    if (jobManager) jobManager.stop(false);
-    setRole("Lumberjack", "Hout verzamelen");
-    await goWaypoint(currentBot, state.lumberWaypoint);
-    await wait(1000);
-    if (modules.woodcutting?.chopWood) await modules.woodcutting.chopWood(currentBot, currentMcData, 10);
-    return true;
-  }
-
-  async function ensureBuildingSupplies(currentBot, snap, needed = 80) {
-    if (snap.plankCount >= needed) return false;
-    return runAction("supply_building", async () => {
-      say("supply_building", `🏭 Te weinig bouwmateriaal (${snap.plankCount}/${needed}). Ik check storage netwerk.`, 60000);
-      await takeFromStorageNetwork(currentBot, "building", Math.max(needed - snap.plankCount, 64));
-    });
-  }
+  async function ensureBuildingSupplies(currentBot, snap, needed = 80) { if (snap.plankCount >= needed) return false; return runAction("supply_building", async () => { say("supply_building", `🏭 Te weinig bouwmateriaal (${snap.plankCount}/${needed}). Ik check storage netwerk.`, 60000); await takeFromStorageNetwork(currentBot, "building", Math.max(needed - snap.plankCount, 64)); }); }
 
   async function runColonyBuilder(currentBot, snap) {
     if (!state.colony.enabled || !modules.baseBuilder || snap.health <= 12 || snap.food <= 10 || snap.emptySlots < 4) return false;
     if (snap.plankCount < 80) return ensureBuildingSupplies(currentBot, snap, 80);
     return runAction("colony_build", async () => {
-      if (jobManager) jobManager.stop(false);
-      setRole("Builder", `Bouwen: ${state.project.active}`);
-      await goHome(currentBot);
-      await wait(1000);
+      if (jobManager) jobManager.stop(false); setRole("Builder", `Bouwen: ${state.project.active}`); await goHome(currentBot); await humanPause();
       if (!state.colony.starterBuilt) { say("build_starter", "🏘️ Autonome kolonist: starter base bouwen.", 60000); await modules.baseBuilder.buildStarterBase(currentBot, "oak_planks"); state.colony.starterBuilt = true; return; }
       if (!state.colony.farmBuilt) { say("build_farm_plot", "🏘️ Autonome kolonist: farm plot bouwen.", 60000); await modules.baseBuilder.buildFarmPlot(currentBot, "oak_planks", 9); state.colony.farmBuilt = true; return; }
       if (!state.colony.warehouseBuilt) { if (snap.plankCount < 160) return; say("build_warehouse", "🏘️ Autonome kolonist: warehouse bouwen.", 60000); await modules.baseBuilder.buildWarehouse(currentBot, "oak_planks", 11, 5); state.colony.warehouseBuilt = true; return; }
@@ -342,10 +282,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     if (!state.expansion.enabled || !state.colony.towerBuilt || !modules.baseBuilder || snap.health <= 12 || snap.food <= 10 || snap.emptySlots < 4) return false;
     if (snap.plankCount < 64 && snap.fenceCount < 64) return ensureBuildingSupplies(currentBot, snap, 90);
     return runAction("expansion_build", async () => {
-      if (jobManager) jobManager.stop(false);
-      setRole("Builder", `Uitbreiden: ${state.project.active}`);
-      await goHome(currentBot);
-      await wait(1000);
+      if (jobManager) jobManager.stop(false); setRole("Builder", `Uitbreiden: ${state.project.active}`); await goHome(currentBot); await humanPause();
       if (!state.expansion.animalPenBuilt && (snap.plankCount + snap.fenceCount) >= 64) { say("build_pen", "🐄 Autonome kolonist: animal pen bouwen.", 60000); await modules.baseBuilder.buildAnimalPen(currentBot, "oak_fence", 9); state.expansion.animalPenBuilt = true; return; }
       if (!state.expansion.extraFarmBuilt && snap.plankCount >= 90) { say("build_extra_farm", "🌾 Autonome kolonist: extra farm bouwen.", 60000); await modules.baseBuilder.buildFarmPlot(currentBot, "oak_planks", 13); state.expansion.extraFarmBuilt = true; return; }
       if (!state.expansion.extraStorageBuilt && snap.plankCount >= 120) { say("build_extra_storage", "📦 Autonome kolonist: extra storage platform bouwen.", 60000); await modules.baseBuilder.buildPlatform(currentBot, "oak_planks", 13, 13); state.expansion.extraStorageBuilt = true; }
@@ -356,10 +293,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
     if (!state.territory.enabled || !state.expansion.extraStorageBuilt || !modules.baseBuilder || snap.health <= 12 || snap.food <= 10 || snap.emptySlots < 4) return false;
     if (snap.plankCount < 80) return ensureBuildingSupplies(currentBot, snap, 100);
     return runAction("territory_build", async () => {
-      if (jobManager) jobManager.stop(false);
-      setRole("Outpost Builder", `Territory: ${state.project.active}`);
-      await goWaypoint(currentBot, state.territory.outpostWaypoint);
-      await wait(1000);
+      if (jobManager) jobManager.stop(false); setRole("Outpost Builder", `Territory: ${state.project.active}`); await goWaypoint(currentBot, state.territory.outpostWaypoint); await humanPause();
       if (!state.territory.outpostBuilt && snap.plankCount >= 100) { say("build_outpost", "🏕️ Territory: outpost base bouwen.", 60000); await modules.baseBuilder.buildStarterBase(currentBot, "oak_planks"); state.territory.outpostBuilt = true; return; }
       if (!state.territory.outpostFarmBuilt && snap.plankCount >= 80) { say("build_outpost_farm", "🌾 Territory: outpost farm bouwen.", 60000); await modules.baseBuilder.buildFarmPlot(currentBot, "oak_planks", 9); state.territory.outpostFarmBuilt = true; return; }
       if (!state.territory.outpostStorageBuilt && snap.plankCount >= 100) { say("build_outpost_storage", "📦 Territory: outpost storage bouwen.", 60000); await modules.baseBuilder.buildPlatform(currentBot, "oak_planks", 11, 11); state.territory.outpostStorageBuilt = true; }
@@ -380,16 +314,11 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
   }
 
   async function decideAndAct() {
-    const currentBot = bot();
-    const currentMcData = mcData();
+    const currentBot = bot(); const currentMcData = mcData();
     if (!state.enabled || state.busy || !currentBot || !currentBot.entity) return false;
-    state.busy = true;
-    state.cycles++;
+    state.busy = true; state.cycles++;
     try {
-      const snap = getSnapshot(currentBot);
-      if (!snap) return false;
-      updateProject(snap);
-      chooseRole(snap);
+      const snap = getSnapshot(currentBot); if (!snap) return false; updateProject(snap); chooseRole(snap);
       if (snap.health <= 6) return runAction("go_home_low_health", async () => { say("low_health", "🚨 Kritieke health. Kolonist gaat naar home.", 60000); if (jobManager) jobManager.stop(false); if (autonomous) autonomous.stop(); if (villageBuilder) villageBuilder.stop(); if (modules.survival?.eatFood) await modules.survival.eatFood(currentBot); await goHome(currentBot); });
       if (snap.health <= 10) return runAction("low_health_eat_or_stop", async () => { say("safe_health", "🧠 Kolonist speelt veilig: lage health.", 60000); if (jobManager) jobManager.stop(false); if (autonomous) autonomous.stop(); if (villageBuilder) villageBuilder.stop(); if (modules.survival?.eatFood) await modules.survival.eatFood(currentBot); });
       if (snap.isNight && modules.sleep?.sleepInNearestBed) return runAction("sleep_night", async () => { if (jobManager) jobManager.stop(false); say("sleep_night", "🌙 Nacht. Ik zoek rustig een bed.", 180000); await modules.sleep.sleepInNearestBed(currentBot, false); });
@@ -404,76 +333,14 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
       const territoryResult = await runTerritoryBuilder(currentBot, snap); if (territoryResult) return true;
       const projectResult = await runProjectPlanner(currentBot, currentMcData, snap); if (projectResult) return true;
       if (snap.logCount < state.minimums.logs && snap.hasAxe) return runAction("supply_wood", async () => { say("wood_low", `🌲 Hout laag: ${snap.logCount}/${state.minimums.logs}. Ik check lumberyard -> warehouse.`, 60000); const took = await takeFromStorageNetwork(currentBot, "wood", 64); if (!took && modules.woodcutting?.chopWood) await goLumberyardAndChop(currentBot, currentMcData); });
-      setRole("Colonist", "Onderhoud en wachten");
-      state.lastSkipped = "none";
-      return true;
-    } catch (err) {
-      state.lastAction = `error: ${err.message}`;
-      if (log) log(`❌ SmartBrain error: ${err.stack || err.message}`);
-      return false;
-    } finally {
-      state.busy = false;
-    }
+      setRole("Colonist", "Onderhoud en wachten"); state.lastSkipped = "none"; return true;
+    } catch (err) { state.lastAction = `error: ${err.message}`; if (log) log(`❌ SmartBrain error: ${err.stack || err.message}`); return false; } finally { state.busy = false; }
   }
 
-  function start() {
-    if (state.enabled) return false;
-    state.enabled = true;
-    state.loop = setInterval(() => { decideAndAct().catch(() => {}); }, Number(process.env.SMART_INTERVAL_MS) || 15000);
-    say("smart_start", "🤖 Autonome SMP-beschaving gestart.", 30000);
-    decideAndAct().catch(() => {});
-    return true;
-  }
-
-  function stop() {
-    state.enabled = false;
-    if (state.loop) clearInterval(state.loop);
-    state.loop = null;
-    say("smart_stop", "🤖 Autonome SMP-beschaving gestopt.", 30000);
-    return true;
-  }
-
-  function colonyStatus() {
-    return `🏘️ Colony: ${state.colony.enabled ? "aan" : "uit"} | Starter: ${state.colony.starterBuilt} | Farm: ${state.colony.farmBuilt} | Warehouse: ${state.colony.warehouseBuilt} | Tower: ${state.colony.towerBuilt} | Expansion: ${state.expansion.enabled ? "aan" : "uit"} | AnimalPen: ${state.expansion.animalPenBuilt} | ExtraFarm: ${state.expansion.extraFarmBuilt} | ExtraStorage: ${state.expansion.extraStorageBuilt} | Territory: ${state.territory.enabled ? "aan" : "uit"} | Outpost: ${state.territory.outpostWaypoint} | OutpostBuilt: ${state.territory.outpostBuilt} | Project: ${state.project.active} ${state.project.progress}/${state.project.requiredPlanks} (${state.project.status}) | Role: ${state.role}`;
-  }
-
-  function status() {
-    const currentBot = bot();
-    const snap = getSnapshot(currentBot);
-    if (!snap) return "🧠 SmartBrain: bot is nog niet online.";
-    updateProject(snap);
-    chooseRole(snap);
-    return [
-      `🤖 Autonome SMP-beschaving: ${state.enabled ? "aan" : "uit"}`,
-      `Role: ${state.role}`,
-      `Task: ${state.task}`,
-      `Cycles: ${state.cycles}`,
-      `Busy: ${state.busy}`,
-      `Last action: ${state.lastAction}`,
-      `Last skipped: ${state.lastSkipped}`,
-      `Project: ${state.project.active} | ${state.project.progress}/${state.project.requiredPlanks} | ${state.project.status}`,
-      `Food stock: ${snap.foodCount}/${state.minimums.food}`,
-      `Logs stock: ${snap.logCount}/${state.minimums.logs}`,
-      `Planks: ${snap.plankCount}`,
-      `Fences: ${snap.fenceCount}`,
-      `Stone stock: ${snap.stoneCount}/${state.minimums.stone}`,
-      storageStatus(),
-      colonyStatus(),
-      `Home: ${state.homeWaypoint}`,
-      `Warehouse: ${state.warehouseWaypoint}`,
-      `Farm: ${state.farmWaypoint}`,
-      `Mine: ${state.mineWaypoint}`,
-      `Lumber: ${state.lumberWaypoint}`,
-      `Outpost: ${state.territory.outpostWaypoint}`,
-      `Night: ${snap.isNight ? "ja" : "nee"}`,
-      `Health: ${snap.health}`,
-      `Food: ${snap.food}`,
-      `Empty slots: ${snap.emptySlots}`,
-      `Pickaxe: ${snap.hasPickaxe ? "ja" : "nee"}`,
-      `Axe: ${snap.hasAxe ? "ja" : "nee"}`
-    ].join(" | ");
-  }
-
+  function start() { if (state.enabled) return false; state.enabled = true; state.loop = setInterval(() => { decideAndAct().catch(() => {}); }, Number(process.env.SMART_INTERVAL_MS) || 15000); say("smart_start", "🤖 Autonome SMP-beschaving gestart.", 30000); decideAndAct().catch(() => {}); return true; }
+  function stop() { state.enabled = false; if (state.loop) clearInterval(state.loop); state.loop = null; say("smart_stop", "🤖 Autonome SMP-beschaving gestopt.", 30000); return true; }
+  function colonyStatus() { return `🏘️ Colony: ${state.colony.enabled ? "aan" : "uit"} | Starter: ${state.colony.starterBuilt} | Farm: ${state.colony.farmBuilt} | Warehouse: ${state.colony.warehouseBuilt} | Tower: ${state.colony.towerBuilt} | Expansion: ${state.expansion.enabled ? "aan" : "uit"} | AnimalPen: ${state.expansion.animalPenBuilt} | ExtraFarm: ${state.expansion.extraFarmBuilt} | ExtraStorage: ${state.expansion.extraStorageBuilt} | Territory: ${state.territory.enabled ? "aan" : "uit"} | Outpost: ${state.territory.outpostWaypoint} | OutpostBuilt: ${state.territory.outpostBuilt} | Project: ${state.project.active} ${state.project.progress}/${state.project.requiredPlanks} (${state.project.status}) | Role: ${state.role}`; }
+  function status() { const currentBot = bot(); const snap = getSnapshot(currentBot); if (!snap) return "🧠 SmartBrain: bot is nog niet online."; updateProject(snap); chooseRole(snap); return [`🤖 Autonome SMP-beschaving: ${state.enabled ? "aan" : "uit"}`, `Role: ${state.role}`, `Task: ${state.task}`, `Cycles: ${state.cycles}`, `Busy: ${state.busy}`, `Last action: ${state.lastAction}`, `Last skipped: ${state.lastSkipped}`, `Project: ${state.project.active} | ${state.project.progress}/${state.project.requiredPlanks} | ${state.project.status}`, `Food stock: ${snap.foodCount}/${state.minimums.food}`, `Logs stock: ${snap.logCount}/${state.minimums.logs}`, `Planks: ${snap.plankCount}`, `Fences: ${snap.fenceCount}`, `Stone stock: ${snap.stoneCount}/${state.minimums.stone}`, storageStatus(), colonyStatus(), `Home: ${state.homeWaypoint}`, `Warehouse: ${state.warehouseWaypoint}`, `Farm: ${state.farmWaypoint}`, `Mine: ${state.mineWaypoint}`, `Lumber: ${state.lumberWaypoint}`, `Outpost: ${state.territory.outpostWaypoint}`, `Night: ${snap.isNight ? "ja" : "nee"}`, `Health: ${snap.health}`, `Food: ${snap.food}`, `Empty slots: ${snap.emptySlots}`, `Pickaxe: ${snap.hasPickaxe ? "ja" : "nee"}`, `Axe: ${snap.hasAxe ? "ja" : "nee"}`].join(" | "); }
   function setHome(name = "home") { state.homeWaypoint = name; say("set_home", `🏠 SmartBrain home waypoint ingesteld op: ${name}`, 10000); return true; }
   function setWarehouse(name = "warehouse") { state.warehouseWaypoint = name; say("set_warehouse", `🏭 SmartBrain warehouse waypoint ingesteld op: ${name}`, 10000); return true; }
   function setFarm(name = "farm") { state.farmWaypoint = name; say("set_farm", `🌾 SmartBrain farm waypoint ingesteld op: ${name}`, 10000); return true; }
@@ -488,31 +355,7 @@ function createSmartBrain({ bot, mcData, modules, jobManager, autonomous, villag
   function setOutpost(name = "outpost") { state.territory.outpostWaypoint = name; say("set_outpost", `🏕️ Outpost waypoint ingesteld op: ${name}`, 10000); return true; }
   function logisticsOn() { state.logistics.enabled = true; say("logistics_on", "🚚 Auto Logistics aangezet.", 10000); return true; }
   function logisticsOff() { state.logistics.enabled = false; say("logistics_off", "🚚 Auto Logistics uitgezet.", 10000); return true; }
-
-  return {
-    state,
-    start,
-    stop,
-    status,
-    colonyStatus,
-    storageStatus,
-    colonyOn,
-    colonyOff,
-    expansionOn,
-    expansionOff,
-    territoryOn,
-    territoryOff,
-    logisticsOn,
-    logisticsOff,
-    setOutpost,
-    tick: decideAndAct,
-    setHome,
-    setWarehouse,
-    setFarm,
-    setMine,
-    setLumber,
-    getSnapshot
-  };
+  return { state, start, stop, status, colonyStatus, storageStatus, colonyOn, colonyOff, expansionOn, expansionOff, territoryOn, territoryOff, logisticsOn, logisticsOff, setOutpost, tick: decideAndAct, setHome, setWarehouse, setFarm, setMine, setLumber, getSnapshot };
 }
 
 module.exports = { createSmartBrain };
