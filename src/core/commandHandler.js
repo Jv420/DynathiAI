@@ -30,7 +30,21 @@ async function handleCommand({ bot, mcData, args, modules, jobManager, brain, au
       if (action === "off" || action === "stop") return smartBrain.expansionOff();
       return reply(smartBrain.colonyStatus());
     }
-    reply("Gebruik: smart start | smart stop | smart status | smart tick | smart home <waypoint> | smart warehouse <waypoint> | smart farm <waypoint> | smart mine <waypoint> | smart lumber <waypoint> | smart colony on/off/status | smart expansion on/off/status");
+    if (sub === "territory") {
+      const action = (args[2] || "status").toLowerCase();
+      if (action === "on" || action === "start") return smartBrain.territoryOn();
+      if (action === "off" || action === "stop") return smartBrain.territoryOff();
+      return reply(smartBrain.colonyStatus());
+    }
+    if (sub === "outpost") return smartBrain.setOutpost(args[2] || "outpost");
+    if (sub === "logistics" || sub === "storage") {
+      const action = (args[2] || "status").toLowerCase();
+      if (action === "on" || action === "start") return smartBrain.logisticsOn();
+      if (action === "off" || action === "stop") return smartBrain.logisticsOff();
+      if (smartBrain.storageStatus) return reply(smartBrain.storageStatus());
+      return reply(smartBrain.status());
+    }
+    reply("Gebruik: smart start | smart stop | smart status | smart tick | smart home <waypoint> | smart warehouse <waypoint> | smart farm <waypoint> | smart mine <waypoint> | smart lumber <waypoint> | smart colony on/off/status | smart expansion on/off/status | smart territory on/off/status | smart outpost <waypoint> | smart logistics on/off/status");
     return false;
   }
 
