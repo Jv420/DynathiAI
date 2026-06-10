@@ -21,6 +21,8 @@ const explorer = require("../modules/explorer");
 const warehouseAI = require("../modules/warehouseAI");
 const auctionAI = require("../modules/auctionAI");
 const waypoints = require("../modules/waypoints");
+const cooking = require("../modules/cooking");
+const roadNetwork = require("../modules/roadNetwork");
 
 function loadModules() {
   return {
@@ -46,7 +48,9 @@ function loadModules() {
     explorer,
     warehouseAI,
     auctionAI,
-    waypoints
+    waypoints,
+    cooking,
+    roadNetwork
   };
 }
 
